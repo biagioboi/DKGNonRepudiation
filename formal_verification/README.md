@@ -33,3 +33,16 @@ fun exp(G, exponent): G.
 
 equation forall x:exponent, y:exponent; exp(exp(g, x), y) = exp(exp(g, y), x).
 ```
+
+# Non-Repudiation
+The property of non-repudiation can be divided into two different aspect. There are two non-repudiation perspectives: the non-repudiation of authentication, and the non-repudiation of resource requested.
+## Non-repudiation of authentication (App -> User, not reversing)
+The non-repudiation of authentication can be potentially achieved by the proposed protocol because whenever an App request for a signature by the user (VPR), then the App signs this request, making for the user possible to assess that App <b>REQUESTED</b> access to that precise resource in a precise time. Anyway, despite it is possible for the User that App requested for the resource, the App cannot assess that User give access to the resource. <i>It might be possible that App generates a VPR, and the User do not respond with a signed VP, makes the protocol unfair because the User can assess that he generated the VP, when actually didn't sent it to the app.</i>  
+
+Anyway, we suppose that App trust the User, so it is not interested in assessing if the user give access to a resource or not because it is in the interest of the App to behave in a genuine way. What is much more interesting is the non repudiation of resource requested by the App. It might be possible that App generates Wrapped VPR but then the CSS does not deliver the resource, or the CSS delivers resource without any claims about the App.
+
+This aspect is what we want to solve by leveraging the interaction with the CSS. Namely, the App will generate the proof of requesting a resource (NRO) only once it has enough guarantee about the resource requested (NRR) from the CSS.  
+## Non-repudiation of resource requested and delivered (Between App and CSS)
+Differently from non repudiation of authentication, the non-repudiation of resource requested cannot be easily achieved by this protocol. In fact, despite the CSS can potentially provide a signature over the VPR generated, then it is not possible to assess if that specific resource has been delivered by the CSS in a non-malicious way. This means that it is possible that App asks for a resource and generates the Wrapped VPR, but then the CSS do not deliver the resource, or deliver a wrong resource. 
+### Non-Repudiable DIDComm
+The idea of non-repudiation is that the content of message $m_7$ rather than containing the resource, as in the previous protocol, it will contains an encrypted version of the resource. The encryption is produced using the symmetric key obtained by the DIDComm Handshake between TTP and CSS. So in this new version we introduce a new participant to the protocol; which is the TTP. Similarly to the other case, the TTP is identified by a pair $(g^{TTP}, PK_{TTP})$, which is managed through a DIDDocument and known to all the participants.
