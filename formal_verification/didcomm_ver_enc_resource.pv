@@ -125,7 +125,7 @@ free access_token_fromApp: bitstring [private].
 
 (* AUTHENTICATION *)
 
-event auth_AppCompletesProtocol(bitstring,bitstring, bitstring,bitstring, bitstring,bitstring, bitstring, bitstring, bitstring, bitstring,bitstring, bitstring, bitstring, bitstring).
+event auth_AppCompletesProtocol(bitstring,bitstring, bitstring,bitstring, bitstring,bitstring, bitstring, bitstring, bitstring, bitstring,bitstring, bitstring, bitstring, SymmetricKey).
 event auth_UserCompletesProtocol(bitstring,bitstring,bitstring,bitstring,bitstring).
 event auth_VerifierCompletesProtocol(bitstring,bitstring,bitstring,bitstring, bitstring, bitstring, bitstring, bitstring, bitstring, bitstring, bitstring, SymmetricKey).
 
@@ -354,7 +354,7 @@ let app(talksOnlyToHonest:bool, c:channel, a:bitstring, ska:SecretKey,exp_a:expo
     if (resource' = good_resp) then
     (* Everything ok, not go to the TTP *)
     if (talksOnlyToHonest) then
-    event auth_AppCompletesProtocol(m_1,m_2,m_3,m_4,vpr_r,h_1,h_2,h_3,m_5,m_6,vp_2,m_10, m_11,m_12);
+    event auth_AppCompletesProtocol(m_1,m_2,m_3,m_4,vpr_r,h_1,h_2,h_3,m_5,m_6,vp_2,m_10, m_11,symk_for_decrypting_resource);
 
     0.
 
@@ -676,7 +676,6 @@ let open_ttp(c:channel, t:bitstring, skttp:SecretKey, exp_ttp:exponent, a:bitstr
 
 query attacker(rule_fromVerifier).
 query attacker(vp_fromVerifier). 
-query attacker(access_token_fromVerifier).
 
 
 query  h_1:bitstring, h_2:bitstring, h_3:bitstring, m_1:bitstring, m_2:bitstring,m_3:bitstring,m_4:bitstring, m_5:bitstring, m_6:bitstring, vpr_send:bitstring; 
@@ -686,7 +685,7 @@ query  h_1:bitstring, h_2:bitstring, h_3:bitstring, m_1:bitstring, m_2:bitstring
     &&
     inj-event(verifierInConeOfUser(m_1, m_2, m_3, m_4, vpr_send)).
 
-query m_1:bitstring,m_2:bitstring,m_3:bitstring,m_4:bitstring,vpr_send:bitstring,h_1:bitstring,h_2:bitstring,h_3:bitstring,m_5:bitstring,m_6:bitstring,vp_2:bitstring,tkn_access:bitstring;
+query m_1:bitstring,m_2:bitstring,m_3:bitstring,m_4:bitstring,vpr_send:bitstring,h_1:bitstring,h_2:bitstring,h_3:bitstring,m_5:bitstring,m_6:bitstring,vp_2:bitstring,m_7:bitstring, m_8:bitstring, m_9:bitstring, m_10:bitstring, m_11:bitstring, symk_k15:SymmetricKey;
     inj-event(auth_VerifierCompletesProtocol(m_1,m_2,m_3,m_4,vpr_send,vp_2,m_7, m_8, m_9, m_10, m_11, symk_k15))
     ==>
     inj-event(auth_AppSendsLastMessageToVerifier(m_1,m_2,m_3,m_4,vpr_send,h_1,h_2,h_3,m_5,m_6,vp_2))
@@ -694,10 +693,10 @@ query m_1:bitstring,m_2:bitstring,m_3:bitstring,m_4:bitstring,vpr_send:bitstring
     inj-event(auth_UserSendsLastMessageToApp(h_1, h_2, h_3, m_5, m_6)). 
 
 
-query m_1:bitstring,m_2:bitstring,m_3:bitstring,m_4:bitstring,vpr_r:bitstring,h_1:bitstring,h_2:bitstring,h_3:bitstring,m_5:bitstring,m_6:bitstring,vp_2:bitstring,m_7:bitstring;
-    inj-event(auth_AppCompletesProtocol(m_1, m_2, m_3, m_4, vpr_r, h_1, h_2, h_3,m_5,m_6,vp_2,m_10, m_11, m_12))
+query m_1:bitstring,m_2:bitstring,m_3:bitstring,m_4:bitstring,vpr_r:bitstring,h_1:bitstring,h_2:bitstring,h_3:bitstring,m_5:bitstring,m_6:bitstring,vp_2:bitstring,m_7:bitstring, m_8:bitstring, m_9:bitstring, m_10:bitstring, m_11:bitstring, symk_k15:SymmetricKey;
+    inj-event(auth_AppCompletesProtocol(m_1, m_2, m_3, m_4, vpr_r, h_1, h_2, h_3,m_5,m_6,vp_2,m_10, m_11, symk_k15))
     ==>
-    inj-event(auth_VerifierSendsLastMessageToApp(m_1, m_2, m_3, m_4, vpr_r, vp_2, m_7))
+    inj-event(auth_VerifierSendsLastMessageToApp(m_1, m_2, m_3, m_4, vpr_r, vp_2, m_7, m_8, m_9, m_10, m_11, symk_k15))
     &&
     inj-event(auth_UserSendsLastMessageToApp(h_1, h_2, h_3, m_5, m_6)). 
 
