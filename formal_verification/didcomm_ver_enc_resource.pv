@@ -1,5 +1,5 @@
 (* --------------------------------------------------------------------------------------------------------- *)
-(* DIDComm Connect *)                                                                                             *)
+(* DIDComm Connect *)                                                                                             
 (* --------------------------------------------------------------------------------------------------------- *)
 
 (* --------------------------------------------------------------------------------------------------------- *)
@@ -21,9 +21,10 @@ type exponent.
 (* END Exponential *)
 
 const g: G[data].
-const uri:bitstring.
+const uri_req:bitstring.
 const usr:bitstring.
 const scope:bitstring.
+const resource:bitstring.
 
 (* m1: app -> css - Request of Connection *)
 (* m2: css -> app - Response to the request *)
@@ -119,14 +120,14 @@ free rule_fromVerifier: bitstring [private].
 free vp_fromProver: bitstring [private].
 free vp_fromVerifier: bitstring [private].
 free cred_fromVerifier: bitstring [private].
-free access_token_fromVerifier: bitstring [private].
+free SymkForResource: bitstring [private].
 free access_token_fromApp: bitstring [private].
 
 (* AUTHENTICATION *)
 
-event auth_AppCompletesProtocol(bitstring,bitstring, bitstring,bitstring, bitstring,bitstring, bitstring, bitstring, bitstring, bitstring,bitstring, bitstring).
+event auth_AppCompletesProtocol(bitstring,bitstring, bitstring,bitstring, bitstring,bitstring, bitstring, bitstring, bitstring, bitstring,bitstring, bitstring, bitstring, bitstring).
 event auth_UserCompletesProtocol(bitstring,bitstring,bitstring,bitstring,bitstring).
-event auth_VerifierCompletesProtocol(bitstring,bitstring,bitstring,bitstring, bitstring, bitstring, bitstring).
+event auth_VerifierCompletesProtocol(bitstring,bitstring,bitstring,bitstring, bitstring, bitstring, bitstring, bitstring, bitstring, bitstring, bitstring, SymmetricKey).
 
 (* App -> User *)
 event auth_AppSendsLastMessageToUser(bitstring,bitstring,bitstring,bitstring, bitstring, bitstring, bitstring, bitstring).
@@ -136,7 +137,7 @@ event verifierInConeOfUser(bitstring,bitstring, bitstring,bitstring,bitstring).
 event auth_UserSendsLastMessageToApp(bitstring,bitstring,bitstring, bitstring,bitstring).
 
 (* Verifier -> App *)
-event auth_VerifierSendsLastMessageToApp(bitstring,bitstring,bitstring,bitstring, bitstring,bitstring, bitstring).
+event auth_VerifierSendsLastMessageToApp(bitstring,bitstring,bitstring,bitstring, bitstring,bitstring, bitstring, bitstring, bitstring, bitstring, bitstring, SymmetricKey).
 
 (* App -> Verifier *)
 event auth_AppSendsLastMessageToVerifier(bitstring, bitstring, bitstring, bitstring, bitstring,bitstring,bitstring,bitstring,bitstring,bitstring, bitstring).
@@ -219,7 +220,7 @@ let user(talksOnlyToHonest:bool, c:channel, u:bitstring, sku:SecretKey, u_exp: e
         out(ch(vp), vp_fromProver);
     0.
 
-let app(talksOnlyToHonest:bool, c:channel, a:bitstring, ska:SecretKey,exp_a:exponent, u:bitstring, pku:PublicKey, exp_u:G, i:bitstring, pki:PublicKey, exp_i:G, v:bitstring, pkv:PublicKey, exp_v:G, uri:bitstring) =
+let app(talksOnlyToHonest:bool, c:channel, a:bitstring, ska:SecretKey,exp_a:exponent, u:bitstring, pku:PublicKey, exp_u:G, i:bitstring, pki:PublicKey, exp_i:G, v:bitstring, pkv:PublicKey, exp_v:G, uri:bitstring, good_resp:bitstring) =
 
     (* Message 1 *)
     new sav: exponent;
@@ -327,20 +328,37 @@ let app(talksOnlyToHonest:bool, c:channel, a:bitstring, ska:SecretKey,exp_a:expo
     out(c,(tag_vp_2, encrypted_k10, aenc(bitstring_exp_sav, pkv) ,enc(vp_2, symk_k10)));
 
 
-    (* Receive Message 7 *)
-    in(c, m_7:bitstring);
-    let (tag7':bitstring, encrypted_k11':bitstring, aenc_genu_m7:bitstring, m_7':bitstring) = m_7 in
-    if (tag7 = tag7') then
-    let symk_k11' = skdec(encrypted_k11', gen_to_sym(exp(gen_u, sa))) in
-    let tkn_access = dec(m_7', symk_k11') in (* Here it is the message *)
-    
+    (* Receive Message 10 *)
+    in(c, m_10:bitstring);
+    let (tag10':bitstring, encrypted_k16':bitstring, aenc_genv_m10:bitstring, m_10':bitstring) = m_10 in
+    if (tag10 = tag10') then
+    let symk_k16' = skdec(encrypted_k16', gen_to_sym(shared_secret_final)) in
+    let enc_resource_enveloped = dec(m_10', symk_k16') in (* This message cannot be entirely read by the App, since the resource is encrypted *)
+    (* But I start extracting the messages *)
+    (* The hash of the encrypted resource is computed as k_15 + resource *)
+    let (encrypted_k15':bitstring, aenc_genv_ttp':bitstring, encrypted_resource':bitstring, hash_encrypted_resource':bitstring) = m_10' in
 
+    (* Now we can sign this resource and retrnsmit it to the CSS *)
+    let m_11 = (m_10', sig(m_10', ska)) in
+    new symk_k17: SymmetricKey;
+    let encrypted_k17 = skenc(symk_k17, gen_to_sym(shared_secret_final)) in
+    out(c,(tag11, encrypted_k17, aenc(bitstring_exp_sav, pkv), enc(m_11, symk_k17)));
+
+    in(c, m_12:bitstring);
+    let (tag12':bitstring, encrypted_k18':bitstring, aenc_genv_m12:bitstring, m_12':bitstring) = m_12 in
+    if (tag12 = tag12') then
+    let symk_k18' = skdec(encrypted_k18', gen_to_sym(shared_secret_final)) in
+    let symk_for_decrypting_resource:SymmetricKey = skdec(m_12', symk_k18') in
+    (* Now I can decrypt the resource *)
+    let resource' = dec(encrypted_resource', symk_for_decrypting_resource) in
+    if (resource' = good_resp) then
+    (* Everything ok, not go to the TTP *)
     if (talksOnlyToHonest) then
-    event auth_AppCompletesProtocol(m_1,m_2,m_3,m_4,vpr_r,h_1,h_2,h_3,m_5,m_6,vp_2,m_7);
+    event auth_AppCompletesProtocol(m_1,m_2,m_3,m_4,vpr_r,h_1,h_2,h_3,m_5,m_6,vp_2,m_10, m_11,m_12);
 
     0.
 
-let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, skv:SecretKey, exp_v:exponent, u:bitstring, pku:PublicKey, exp_u:G, a:bitstring, pka:PublicKey, exp_a:G, i:bitstring, pki:PublicKey, exp_i:G, uri:bitstring) =
+let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, skv:SecretKey, exp_v:exponent, u:bitstring, pku:PublicKey, exp_u:G, a:bitstring, pka:PublicKey, exp_a:G, i:bitstring, pki:PublicKey, exp_i:G, ttp:bitstring, pkttp:PublicKey, exp_ttp:G, uri:bitstring) =
 
     (* Receive Message 1 *)
     in(c, m_1:bitstring);
@@ -352,11 +370,9 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, skv:SecretKey, exp_
     let dec_m1 = dec(m_1', symk_k0') in (* Here it is the message *)
     let (diddoc_1':bitstring, sig_1':bitstring) = dec_m1 in
     let (gen_1':G) = bitstring_to_gen(diddoc_1') in
-    if talksOnlyToHonest then
     if (check(diddoc_1', sig_1', pka)) then
     (* This is a really important check because otherwise we can falsify the DIDDoc *)
     if (gen_1'=gen_a) then
-    out(chSymK(symk_k0'), symk_0);
 
     (* Message 2 *)
     new sc: exponent;
@@ -420,36 +436,124 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, skv:SecretKey, exp_
     (* Check if the VPR is the requested one *)
     if ((rule'', usr'', n_c'') = (rule, usr, n_c)) then
 
-
-    new symk_k12: SymmetricKey;
-    new tkn_access:bitstring;
-
-    (* Message 1 *)
+    (* Message 7 - Request of Authentication *)
     new sv: exponent;
     let exp_sv = exp(g, sv) in
     new symk_k12: SymmetricKey;
-    let diddoc = gen_to_bitstring(exp_sv) in  (* Represent DIDDoc(g^{sv}) *)
-    let m_7 = (diddoc, sig(diddoc, ska)) in
-    let sharedSecret = gen_to_sym(exp(exp_v, sav)) in (* (g^ttp)^sv*)
-    let encrypted_k0 = skenc(symk_k0, sharedSecret) in
-    let bitstring_exp_sav = gen_to_bitstring(exp_sav) in
-    out(c,(tag1, encrypted_k0, aenc(bitstring_exp_sav, pkv) ,enc(m_1, symk_k0)));
+    let diddoc_sv = gen_to_bitstring(exp_sv) in  (* Represent DIDDoc(g^{sv}) *)
+    let m_7 = (diddoc, sig(diddoc, skv)) in
+    let sharedSecret_sv = gen_to_sym(exp(exp_ttp, exp_v)) in (* (g^ttp)^sv*)
+    let encrypted_k12 = skenc(symk_k12, sharedSecret_sv) in
+    let bitstring_exp_sv = gen_to_bitstring(exp_sv) in
+    out(c,(tag7, encrypted_k12, aenc(bitstring_exp_sv, pkttp) ,enc(m_7, symk_k12)));
 
 
-    (* Message  7 *)
-    new symk_k11: SymmetricKey;
-    new tkn_access:bitstring;
-    let encrypted_k11 = skenc(symk_k11, gen_to_sym(shared_secret)) in
-    out(c,(tag7, encrypted_k11, aenc(bitstring_exp_sav, pka) ,enc(tkn_access, symk_k11)));
+    (* Receive Message 8 *)
+    in(c, m_8:bitstring);
+    let (tag8':bitstring, encrypted_k13':bitstring, aenc_gensttp':bitstring, m_8':bitstring) = m_8 in
+    if (tag8 = tag8') then
+    let gen_sttp = bitstring_to_gen(adec(aenc_gensttp', skv)) in
+    let shared_secret_final_ttp = exp(gen_sttp, sv) in
+    let symk_k13' = skdec(encrypted_k13', gen_to_sym(shared_secret_final_ttp)) in
+    let dec_m2 = dec(m_8', symk_k13') in (* Here it is the message *)
+    let (diddoc_ttp':bitstring, sig_ttp':bitstring) = dec_m2 in
+    let (gen_ttp':G) = bitstring_to_gen(diddoc_ttp') in
+    if talksOnlyToHonest then
+    if (check(diddoc_ttp', sig_ttp', pkttp)) then
+    (* This is a really important check because otherwise we can falsify the DIDDoc *)
+    if (gen_ttp'=gen_sttp) then
 
-    event auth_VerifierSendsLastMessageToApp(m_1,m_2,m_3,m_4,vpr_send,vp_2,tkn_access);
-    out(ch(( tkn_access, sig(tkn_access,skv) )),access_token_fromVerifier);
+
+    (* Message 9 - Complete the auth *)
+    new symk_k14: SymmetricKey;
+    new ack_ttp:bitstring;
+    let m_9 = ack_ttp in
+    let encrypted_k14 = skenc(symk_k14, gen_to_sym(shared_secret_final_ttp)) in
+    out(c,(tag3, encrypted_k14, aenc(bitstring_exp_sv, pkttp), enc(m_9, symk_k14)));
+
+
+    (* Once the verifier conclude the handshake with the TTP, then it is able to generate the encrypted resource to send to the App *)
+
+    (* First generate the message we have to send to the App *)
+    new symk_k15: SymmetricKey; (* The key that will be used by TTP to decrypt the resource in the case it is necessary *)
+    let encrypted_k15 = (symk_k15, gen_to_sym(shared_secret_final_ttp)) in
+    (* Compute the hash between the resource and the key used *)
+    let to_hash = (resource, symk_k15) in
+    let m_10 = (encrypted_k15, aenc(bitstring_exp_sv, pkttp), enc(resource, symk_k15), hash(to_hash)) in
+
+    (* Message 10 - Now send it to the App *)
+    new symk_k16: SymmetricKey;
+    let encrypted_k16 = skenc(symk_k16, gen_to_sym(shared_secret)) in
+    out(c,(tag10, encrypted_k16, aenc(bitstring_exp_sav, pka), enc(m_10, symk_k16)));
+
+
+    (* Message 11 - Receive the resource signed from the App *)
+    in(c, m_11:bitstring);
+    let (tag11':bitstring, encrypted_k17':bitstring, aenc_gen_app_m11':bitstring, m_11':bitstring) = m_11 in
+    if (tag11 = tag11') then
+    let symk_k17' = skdec(encrypted_k17', gen_to_sym(shared_secret)) in
+    let dec_m11 = dec(m_11', symk_k17') in
+    let (m10_received:bitstring, m10_signature:bitstring) = dec_m11 in
+    if (check(m10_signature, m10_received, pka)) then (* The message has been authentically signed*)
+
+
+    (* Message 12 - Send the key for decrypting the resource to the App *)
+    new symk_k18: SymmetricKey;
+    let encrypted_k18 = skenc(symk_k18, gen_to_sym(shared_secret)) in
+    out(c,(tag12, encrypted_k18, aenc(bitstring_exp_sav, pka), skenc(symk_k15, symk_k18))); (* Send the symmetric key used for encrypting the resource *)
+    
+
+    event auth_VerifierSendsLastMessageToApp(m_1,m_2,m_3,m_4,vpr_send,vp_2,m_7, m_8, m_9, m_10, m_11, symk_k15);
+    out(chSymK(symk_k15), SymkForResource);
     
     if talksOnlyToHonest then
-    event auth_VerifierCompletesProtocol(m_1,m_2,m_3,m_4,vpr_send,vp_2,tkn_access)|
+    event auth_VerifierCompletesProtocol(m_1,m_2,m_3,m_4,vpr_send,vp_2,m_7, m_8, m_9, m_10, m_11, symk_k15)|
     out(ch(vpr_send), rule_fromVerifier);
     
     0.
+
+let ttp(talksOnlyToHonest: bool, c:channel, t:bitstring, skttp:SecretKey, exp_ttp:exponent, a:bitstring, pka:PublicKey, exp_a:G, v:bitstring, pkv:PublicKey, exp_v:G) =
+    
+    (* Message 7 - Receive Request of Authentication *)
+    in(c, m_7:bitstring);
+    let (tag7':bitstring, encrypted_k12':bitstring, aenc_gsv':bitstring, m_7':bitstring) = m_7 in
+    if (tag7 = tag7') then
+    let gen_sv = bitstring_to_gen(adec(aenc_gsv', skttp)) in
+    let shared_secret_firstmessage = exp(gen_sv, exp_ttp) in
+    let symk_k12' = skdec(encrypted_k12', gen_to_sym(shared_secret_firstmessage)) in
+    let dec_m7 = dec(m_7', symk_k12') in (* Here it is the message *)
+    let (diddoc_1':bitstring, sig_1':bitstring) = dec_m7 in
+    let (gen_1':G) = bitstring_to_gen(diddoc_1') in (* Containing the session key *)
+    if talksOnlyToHonest then
+    if (check(diddoc_1', sig_1', pkv)) then
+    (* This is a really important check because otherwise we can falsify the DIDDoc *)
+    if (gen_1'=gen_sv) then
+
+    (* Message 8 - Respond to the request *)
+    new sttp: exponent;
+    let exp_sttp = exp(g, sttp) in
+    new symk_k13: SymmetricKey;
+    let diddoc = gen_to_bitstring(exp_sttp) in  (* Represent DIDDoc(g^{sttp}) *)
+    let m_8 = (diddoc, sig(diddoc, skttp)) in
+    let shared_secret_final = gen_to_sym(exp(gen_sv, sttp)) in
+    let encrypted_k13 = skenc(symk_k13, shared_secret_final) in
+    let bitstring_exp_sttp = gen_to_bitstring(exp_sttp) in
+    out(c,(tag8, encrypted_k13, aenc(bitstring_exp_sttp, pkv), enc(m_8, symk_k13)));
+
+
+    (* Message 9 - Receive complete the auth *)
+    in(c, m_9:bitstring);
+    let (tag9':bitstring, encrypted_k14':bitstring, aenc_gsv_m9':bitstring, m_9':bitstring) = m_9 in
+    if (tag9 = tag9') then
+    let symk_k14' = skdec(encrypted_k14', shared_secret_final) in
+    let dec_m9 = dec(m_9', symk_k14') in (* Here it is the message *)
+    let(ack_ttp':bitstring) = dec_m9  in
+    
+    (* Ok, completed the exchagne with Verifier, now wait if we receive something from the user *)
+
+
+0.
+    
 (* --------------------------------------------------------------------------------------------------------- *)
 (* End Agent Macros *)
 (* Start Open Network *)
@@ -467,7 +571,7 @@ let open_user(c:channel, u:bitstring, sku:SecretKey, u_exp:exponent, a:bitstring
     else if(e = a) then user(false, c, u, sku, u_exp, a, pka, exp_a, e2, pke2, vc, euri) (* Notice, exp do not change for the verifier since the user only need the exp_a, not using exp_v*)
     else user(false, c, u, sku, u_exp, e, pke1, exp_e1, e2, pke2, vc, euri).
 
-let open_app(c:channel, a:bitstring, ska:SecretKey, exp_a:exponent, u:bitstring, pku:PublicKey, exp_u:G, i:bitstring, pki:PublicKey, exp_i:G, v:bitstring, pkv:PublicKey, exp_v:G, uri:bitstring) =
+let open_app(c:channel, a:bitstring, ska:SecretKey, exp_a:exponent, u:bitstring, pku:PublicKey, exp_u:G, i:bitstring, pki:PublicKey, exp_i:G, v:bitstring, pkv:PublicKey, exp_v:G, t:bitstring, pkttp:PublicKey, exp_ttp:G ,uri:bitstring, res:bitstring) =
     in(c, e1:bitstring);
     in(c, e2:bitstring);
     in(c, e3:bitstring);
@@ -475,54 +579,92 @@ let open_app(c:channel, a:bitstring, ska:SecretKey, exp_a:exponent, u:bitstring,
     in(c, pke2:PublicKey);
     in(c, pke3:PublicKey);
     in(c, euri:bitstring);
+    in(c, eresource:bitstring);
     in(c, exp_e1:G);
     in(c, exp_e2:G);
     in(c, exp_e3:G);
+
     (* - - - *)
-    if(e1 = u && e2 = i && e3 = v) then app(true, c, a, ska, exp_a, u, pku, exp_u, i, pki, exp_i, v, pkv, exp_v, uri) 
+    if(e1 = u && e2 = i && e3 = v) then app(true, c, a, ska, exp_a, u, pku, exp_u, i, pki, exp_i, v, pkv, exp_v, uri, res) 
     (* A - - *)
-    else if(e2 = i && e3 = v) then app(false, c, a, ska, exp_a, e1, pke1, exp_e1, i, pki, exp_i, v, pkv, exp_v, uri) 
+    else if(e2 = i && e3 = v) then app(false, c, a, ska, exp_a, e1, pke1, exp_e1, i, pki, exp_i, v, pkv, exp_v, uri, res) 
     (* - A - *)
-    else if(e1 = u && e3 = v) then app(false, c, a, ska, exp_a, u, pku, exp_u, e2, pke2, exp_e2, v, pkv, exp_v, uri) 
+    else if(e1 = u && e3 = v) then app(false, c, a, ska, exp_a, u, pku, exp_u, e2, pke2, exp_e2, v, pkv, exp_v, uri, res) 
     (* - - A *)
-    else if(e1 = u && e2 = i) then app(false, c, a, ska, exp_a, u, pku, exp_u, i, pki, exp_i, e3, pke3, exp_e3, uri) 
+    else if(e1 = u && e2 = i) then app(false, c, a, ska, exp_a, u, pku, exp_u, i, pki, exp_i, e3, pke3, exp_e3, euri, eresource) 
     (* A A - *)
-    else if(e3 = v) then app(false, c, a, ska, exp_a, e1, pke1, exp_e1, e2, pke2, exp_e2, v, pkv, exp_v, uri) 
+    else if(e3 = v) then app(false, c, a, ska, exp_a, e1, pke1, exp_e1, e2, pke2, exp_e2, v, pkv, exp_v, uri, res) 
     (* - A A *)
-    else if(e1 = u) then app(false, c, a, ska, exp_a, u, pku, exp_u, e2, pke2, exp_e2, e3, pke3, exp_e3, uri) 
+    else if(e1 = u) then app(false, c, a, ska, exp_a, u, pku, exp_u, e2, pke2, exp_e2, e3, pke3, exp_e3, euri, eresource) 
     (* A - A *)
-    else if(e2 = i) then app(false, c, a, ska, exp_a, e1, pke1, exp_e1, i, pki, exp_i, e3, pke3, exp_e3, uri) 
+    else if(e2 = i) then app(false, c, a, ska, exp_a, e1, pke1, exp_e1, i, pki, exp_i, e3, pke3, exp_e3, euri, eresource) 
     (* A A A *)
-    else app(false, c, a, ska, exp_a, e1, pke1, exp_e1, e2, pke2, exp_e2, e3, pke3, exp_e3, euri)
+    else app(false, c, a, ska, exp_a, e1, pke1, exp_e1, e2, pke2, exp_e2, e3, pke3, exp_e3, euri, eresource)
     .  (* euri is a URI for another server. If the verifier is the intended trusted Solid server then the uri is as expected *) 
 
-let open_verifier(c:channel, v:bitstring, skv:SecretKey, exp_v:exponent, u:bitstring, pku:PublicKey, exp_u:G, a:bitstring, pka:PublicKey, exp_a:G, i:bitstring, pki:PublicKey, exp_i:G, uri:bitstring) =
+let open_verifier(c:channel, v:bitstring, skv:SecretKey, exp_v:exponent, u:bitstring, pku:PublicKey, exp_u:G, a:bitstring, pka:PublicKey, exp_a:G, i:bitstring, pki:PublicKey, exp_i:G, t:bitstring, pkttp:PublicKey, exp_ttp:G, uri:bitstring) =
     in(c, e1:bitstring);
     in(c, e2:bitstring);
     in(c, e3:bitstring);
+    in(c, e4:bitstring);
     in(c, pke1:PublicKey);
     in(c, pke2:PublicKey);
     in(c, pke3:PublicKey);
+    in(c, pke4:PublicKey);
     in(c, exp_e1:G);
     in(c, exp_e2:G);
     in(c, exp_e3:G);
-    (* U  A  I *)
-    (* - - - *)
-    if(e1 = u && e2 = a && e3 = i) then verifier(true, c, v, skv,exp_v, u, pku, exp_u, a, pka, exp_a, i, pki, exp_i, uri)
-    (* A - - *)
-    else if(e2 = a && e3 = i) then verifier(false, c, v, skv,exp_v, e1, pke1, exp_e1, a, pka, exp_a, i, pki, exp_i, uri)
-    (* - A - *)
-    else if(e1 = u && e3 = i) then verifier(false, c, v, skv,exp_v, u, pku, exp_u, e2, pke2, exp_e2, i, pki, exp_i, uri)
-    (* - - A *)
-    else if(e1 = u && e2 = a) then verifier(false, c, v, skv,exp_v, u, pku, exp_u, a, pka, exp_a, e3, pke3, exp_e3, uri)
-    (* A A - *)
-    else if(e3 = i) then verifier(false, c, v, skv,exp_v, e1, pke1, exp_e1, e2, pke2, exp_e2, i, pki, exp_i, uri)
-    (* - A A *)
-    else if(e1 = u) then verifier(false, c, v, skv,exp_v, u, pku, exp_u, e2, pke2, exp_e2, e3, pke3, exp_e3, uri)
-    (* A - A *)
-    else if(e2 = a) then verifier(false, c, v, skv,exp_v, e1, pke1, exp_e1, a, pka, exp_a, e3, pke3, exp_e3, uri)
-    (* A A A *)
-    else verifier(false, c, v, skv,exp_v, e1, pke1, exp_e1, e2, pke2, exp_e2, e3, pke3, exp_e3, uri)
+    in(c, exp_e4:G);
+    (* U  A  I TTP *)
+    (* - - - - *)
+    if(e1 = u && e2 = a && e3 = i && e4 = t) then verifier(true, c, v, skv,exp_v, u, pku, exp_u, a, pka, exp_a, i, pki, exp_i, t, pkttp, exp_ttp, uri)
+    (* A - - - *)
+    else if(e2 = a && e3 = i && e4 = t) then verifier(false, c, v, skv,exp_v, e1, pke1, exp_e1, a, pka, exp_a, i, pki, exp_i, t, pkttp, exp_ttp, uri)
+    (* - A - - *)
+    else if(e1 = u && e3 = i && e4 = t) then verifier(false, c, v, skv,exp_v, u, pku, exp_u, e2, pke2, exp_e2, i, pki, exp_i, t, pkttp, exp_ttp, uri)
+    (* - - A - *)
+    else if(e1 = u && e2 = a && e4 = t) then verifier(false, c, v, skv,exp_v, u, pku, exp_u, a, pka, exp_a, e3, pke3, exp_e3,t, pkttp, exp_ttp, uri)
+    (* A A - - *)
+    else if(e3 = i && e4 = t) then verifier(false, c, v, skv,exp_v, e1, pke1, exp_e1, e2, pke2, exp_e2, i, pki, exp_i, t, pkttp, exp_ttp,uri)
+    (* - A A - *)
+    else if(e1 = u && e4 = t) then verifier(false, c, v, skv,exp_v, u, pku, exp_u, e2, pke2, exp_e2, e3, pke3, exp_e3,t, pkttp, exp_ttp,uri)
+    (* A - A - *)
+    else if(e2 = a && e4 = t) then verifier(false, c, v, skv,exp_v, e1, pke1, exp_e1, a, pka, exp_a, e3, pke3, exp_e3, t, pkttp, exp_ttp,uri)
+    (* A A A - *)
+    else if (e4 = t) then verifier(false, c, v, skv,exp_v, e1, pke1, exp_e1, e2, pke2, exp_e2, e3, pke3, exp_e3, t, pkttp, exp_ttp,uri)
+    (* - - - A *)
+    else if(e1 = u && e2 = a && e3 = i) then verifier(false, c, v, skv,exp_v, u, pku, exp_u, a, pka, exp_a, i, pki, exp_i, e4, pke4, exp_e4, uri)
+    (* A - - A *)
+    else if(e2 = a && e3 = i) then verifier(false, c, v, skv,exp_v, e1, pke1, exp_e1, a, pka, exp_a, i, pki, exp_i,e4, pke4, exp_e4, uri)
+    (* - A - A *)
+    else if(e1 = u && e3 = i) then verifier(false, c, v, skv,exp_v, u, pku, exp_u, e2, pke2, exp_e2, i, pki, exp_i, e4, pke4, exp_e4,uri)
+    (* - - A A *)
+    else if(e1 = u && e2 = a) then verifier(false, c, v, skv,exp_v, u, pku, exp_u, a, pka, exp_a, e3, pke3, exp_e3,e4,  pke4, exp_e4,uri)
+    (* A A - A *)
+    else if(e3 = i) then verifier(false, c, v, skv,exp_v, e1, pke1, exp_e1, e2, pke2, exp_e2, i, pki, exp_i,e4, pke4, exp_e4, uri)
+    (* - A A A *)
+    else if(e1 = u) then verifier(false, c, v, skv,exp_v, u, pku, exp_u, e2, pke2, exp_e2, e3, pke3, exp_e3, e4, pke4, exp_e4,uri)
+    (* A - A A *)
+    else if(e2 = a) then verifier(false, c, v, skv,exp_v, e1, pke1, exp_e1, a, pka, exp_a, e3, pke3, exp_e3,e4,  pke4, exp_e4,uri)
+    (* A A A A *)
+    else verifier(false, c, v, skv,exp_v, e1, pke1, exp_e1, e2, pke2, exp_e2, e3, pke3, exp_e3, e4, pke4, exp_e4, uri)
+    .
+
+let open_ttp(c:channel, t:bitstring, skttp:SecretKey, exp_ttp:exponent, a:bitstring, pka:PublicKey, exp_a:G, v:bitstring, pkv:PublicKey, exp_v:G) =
+    in(c, e1:bitstring);
+    in(c, e2:bitstring);
+    in(c, pke1:PublicKey);
+    in(c, pke2:PublicKey);
+    in(c, exp_e1:G);
+    in(c, exp_e2:G);
+    (* - - *)
+    if(e1 = a && e2 = v) then ttp(true, c, t, skttp,exp_ttp, a, pka, exp_a, v, pkv, exp_v)
+    (* A - *)
+    else if(e2 = v) then ttp(false, c, t, skttp,exp_ttp, e1, pke1, exp_e1, v, pkv, exp_v)
+    (* - A *)
+    else if(e2 = a) then ttp(false, c, t, skttp,exp_ttp, a, pka, exp_a, e2, pke2, exp_e2)
+    (* A A *)
+    else ttp(false, c, t, skttp,exp_ttp, e1, pke1, exp_e1, e2, pke2, exp_e2)
     .
 
 (* --------------------------------------------------------------------------------------------------------- *)
@@ -545,7 +687,7 @@ query  h_1:bitstring, h_2:bitstring, h_3:bitstring, m_1:bitstring, m_2:bitstring
     inj-event(verifierInConeOfUser(m_1, m_2, m_3, m_4, vpr_send)).
 
 query m_1:bitstring,m_2:bitstring,m_3:bitstring,m_4:bitstring,vpr_send:bitstring,h_1:bitstring,h_2:bitstring,h_3:bitstring,m_5:bitstring,m_6:bitstring,vp_2:bitstring,tkn_access:bitstring;
-    inj-event(auth_VerifierCompletesProtocol(m_1,m_2,m_3,m_4,vpr_send,vp_2,tkn_access))
+    inj-event(auth_VerifierCompletesProtocol(m_1,m_2,m_3,m_4,vpr_send,vp_2,m_7, m_8, m_9, m_10, m_11, symk_k15))
     ==>
     inj-event(auth_AppSendsLastMessageToVerifier(m_1,m_2,m_3,m_4,vpr_send,h_1,h_2,h_3,m_5,m_6,vp_2))
     &&
@@ -553,7 +695,7 @@ query m_1:bitstring,m_2:bitstring,m_3:bitstring,m_4:bitstring,vpr_send:bitstring
 
 
 query m_1:bitstring,m_2:bitstring,m_3:bitstring,m_4:bitstring,vpr_r:bitstring,h_1:bitstring,h_2:bitstring,h_3:bitstring,m_5:bitstring,m_6:bitstring,vp_2:bitstring,m_7:bitstring;
-    inj-event(auth_AppCompletesProtocol(m_1, m_2, m_3, m_4, vpr_r, h_1, h_2, h_3,m_5,m_6,vp_2,m_7))
+    inj-event(auth_AppCompletesProtocol(m_1, m_2, m_3, m_4, vpr_r, h_1, h_2, h_3,m_5,m_6,vp_2,m_10, m_11, m_12))
     ==>
     inj-event(auth_VerifierSendsLastMessageToApp(m_1, m_2, m_3, m_4, vpr_r, vp_2, m_7))
     &&
@@ -574,18 +716,21 @@ process (*use root process for setup *)
     new a:bitstring;
     new v:bitstring;
     new i:bitstring;
+    new t:bitstring;
 
     (*advertise identities*)
     out(c,u);
     out(c,a);
     out(c,v);
     out(c, i);
+    out(c, t);
 
     (*declare secret keys*)
     new sku:SecretKey;
     new ska:SecretKey;
     new skv:SecretKey;
     new ski:SecretKey;
+    new skttp:SecretKey;
     
     new v_exp:exponent;
     let exp_v:G = exp(g, v_exp) in
@@ -595,25 +740,31 @@ process (*use root process for setup *)
     let exp_a:G = exp(g, a_exp) in
     new i_exp:exponent;
     let exp_i:G = exp(g, i_exp) in
+    new ttp_exp:exponent;
+    let exp_ttp:G = exp(g, ttp_exp) in
 
     (*advertise public keys*)
     out(c,pk(sku));
     out(c,pk(ska));
     out(c,pk(skv));
     out(c,pk(ski));
+    out(c,pk(skttp));
 
     out(c, exp_v);
     out(c, exp_u);
     out(c, exp_a);
     out(c, exp_i);
+    out(c, exp_ttp);
 
     let vc = ((i, u), sig((i, u), ski)) in
 
     (*let agents dance*)
     (
-        ! open_user(c, u, sku, u_exp, a, pk(ska), exp_a, v, pk(skv), vc, uri)
-      | ! open_app(c, a, ska, a_exp, u, pk(sku), exp_u, i, pk(ski), exp_i, v, pk(skv), exp_v, uri)
-      | ! open_verifier(c, v, skv, v_exp, u, pk(sku), exp_u, a, pk(ska), exp_a, i, pk(ski), exp_i, uri)
+        ! open_user(c, u, sku, u_exp, a, pk(ska), exp_a, v, pk(skv), vc, uri_req)
+      | ! open_app(c, a, ska, a_exp, u, pk(sku), exp_u, i, pk(ski), exp_i, v, pk(skv), exp_v, t, pk(skttp), exp_ttp, uri_req, resource)
+      | ! open_verifier(c, v, skv, v_exp, u, pk(sku), exp_u, a, pk(ska), exp_a, i, pk(ski), exp_i, t, pk(skttp), exp_ttp, uri_req)
+      (* TTP do not need any information about Issuer and User, it only needs information about Verifier and App *)
+      | ! open_ttp(c, t, skttp, ttp_exp, a, pk(ska), exp_a, v, pk(skv), exp_v)
     )
 
 (* --------------------------------------------------------------------------------------------------------- *)

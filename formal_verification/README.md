@@ -34,6 +34,8 @@ fun exp(G, exponent): G.
 equation forall x:exponent, y:exponent; exp(exp(g, x), y) = exp(exp(g, y), x).
 ```
 
+# Forward Secrecy
+[[https://identity.foundation/didcomm-messaging/spec/ | DIDComm Spec v.2 ]] does not provide any information about forward secrecy([[https://didcomm.org/book/v2/pfs | Ref. DIDComm Guidebook]]) since the choose of keys is up to the parties. For this reason we implemented a particular mechanism to guarantee the forward secrecy. 
 # Non-Repudiation
 The property of non-repudiation can be divided into two different aspect. There are two non-repudiation perspectives: the non-repudiation of authentication, and the non-repudiation of resource requested.
 ## Non-repudiation of authentication (App -> User, not reversing)
@@ -46,3 +48,5 @@ This aspect is what we want to solve by leveraging the interaction with the CSS.
 Differently from non repudiation of authentication, the non-repudiation of resource requested cannot be easily achieved by this protocol. In fact, despite the CSS can potentially provide a signature over the VPR generated, then it is not possible to assess if that specific resource has been delivered by the CSS in a non-malicious way. This means that it is possible that App asks for a resource and generates the Wrapped VPR, but then the CSS do not deliver the resource, or deliver a wrong resource. 
 ### Non-Repudiable DIDComm
 The idea of non-repudiation is that the content of message $m_7$ rather than containing the resource, as in the previous protocol, it will contains an encrypted version of the resource. The encryption is produced using the symmetric key obtained by the DIDComm Handshake between TTP and CSS. So in this new version we introduce a new participant to the protocol; which is the TTP. Similarly to the other case, the TTP is identified by a pair $(g^{TTP}, PK_{TTP})$, which is managed through a DIDDocument and known to all the participants.
+
+![MSC of TTP](msc/msc_ttp.png)
