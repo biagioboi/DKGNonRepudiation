@@ -161,7 +161,7 @@ let user(talksOnlyToHonest:bool, c:channel, u:bitstring, sku:SecretKey, u_exp: e
     let dec_h2 = dec(h_2', symk_k6') in (* Here it is the message *)
     let (diddoc_1':bitstring, sig_1':bitstring) = dec_h2 in
     let (gen_1':G) = bitstring_to_gen(diddoc_1') in
-    if talksOnlyToHonest then
+    (* if talksOnlyToHonest then *)
     if (check(diddoc_1', sig_1', pka)) then
     (* This is a really important check because otherwise we can falsify the DIDDoc *)
     if (gen_1'=gen_a) then
@@ -230,7 +230,7 @@ let app(talksOnlyToHonest:bool, c:channel, a:bitstring, ska:SecretKey,exp_a:expo
     let dec_m2 = dec(m_2', symk_k1') in (* Here it is the message *)
     let (diddoc_1':bitstring, sig_1':bitstring) = dec_m2 in
     let (gen_1':G) = bitstring_to_gen(diddoc_1') in
-    if talksOnlyToHonest then
+    (* if talksOnlyToHonest then *)
     if (check(diddoc_1', sig_1', pkv)) then
     (* This is a really important check because otherwise we can falsify the DIDDoc *)
     if (gen_1'=gen_v) then
@@ -267,7 +267,7 @@ let app(talksOnlyToHonest:bool, c:channel, a:bitstring, ska:SecretKey,exp_a:expo
     let dec_h1 = dec(h_1', symk_k5') in (* Here it is the message *)
     let (diddoc_1_user':bitstring, sig_1_user':bitstring) = dec_h1 in
     let (gen_1_user':G) = bitstring_to_gen(diddoc_1_user') in
-    if talksOnlyToHonest then
+    (* if talksOnlyToHonest then *)
     if (check(diddoc_1_user', sig_1_user', pku)) then
     (* This is a really important check because otherwise we can falsify the DIDDoc *)
     if (gen_1_user'=gen_u) then
@@ -340,7 +340,7 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, skv:SecretKey, exp_
     let dec_m1 = dec(m_1', symk_k0') in (* Here it is the message *)
     let (diddoc_1':bitstring, sig_1':bitstring) = dec_m1 in
     let (gen_1':G) = bitstring_to_gen(diddoc_1') in
-    if talksOnlyToHonest then
+    (* if talksOnlyToHonest then *)
     if (check(diddoc_1', sig_1', pka)) then
     (* This is a really important check because otherwise we can falsify the DIDDoc *)
     if (gen_1'=gen_a) then
