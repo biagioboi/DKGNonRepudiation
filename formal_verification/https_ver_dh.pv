@@ -8,15 +8,18 @@
 
 (* START keys *)
 type SymmetricKey.
-type ktag.
 type SecretKey.
 type PublicKey.
 fun pk(SecretKey):PublicKey.
 (* END keys *)
+type G.
+type exponent.
 
-const uri:bitstring.
+const uri_req:bitstring.
 const usr:bitstring.
 
+type tag.
+type ktag.
 
 const tag1:bitstring.
 const tag2:bitstring.
@@ -32,9 +35,14 @@ const tag10:bitstring.
 const tag11:bitstring.
 const tag12:bitstring.
 
+
+const KEXDHINIT, KEXDHREPLY, KEXDHINITSERVER, KEXDHREPLYSERVER: tag [data].
+const keyEncStoC, keyEncCtoS, keyEncAtoC, keyEncCtoA: ktag [data].
+
 (* START hash *)
 fun hash(bitstring): bitstring.
 fun hash_pk(PublicKey): bitstring.
+fun hash_fork(bitstring): SymmetricKey.
 (* End hash *)
 
 (* START symmetric encryption *)
@@ -55,9 +63,20 @@ fun sig(bitstring(*the message*), SecretKey):bitstring(*the signature value*).
 reduc forall msg:bitstring,sk:SecretKey; check(msg,sig(msg,sk),pk(sk))=true (*check(msg,sigVal,pk)*).
 (* END digital signature *)
 
+(* START digital signature *)
+fun sig_hash_k(SymmetricKey(*the message*), SecretKey):bitstring(*the signature value*).
+reduc forall msg:SymmetricKey,sk:SecretKey; check_hash_k(msg,sig_hash_k(msg,sk),pk(sk))=true (*check(msg,sigVal,pk)*).
+(* END digital signature *)
+
 (*DEFS*)
 fun ch(bitstring): channel.
 fun chSymK(SymmetricKey): channel.
+
+
+
+const g: G.
+fun exp(G, exponent): G.
+equation forall x: exponent, y: exponent; exp(exp(g, x), y) = exp(exp(g, y), x).
 
 
 (* SECRECY *)
@@ -71,23 +90,23 @@ free access_token_fromApp: bitstring [private].
 
 (* AUTHENTICATION *)
 
-event auth_AppCompletesProtocol(bitstring,bitstring, bitstring,bitstring, bitstring,bitstring, bitstring, bitstring, bitstring, bitstring,bitstring).
-event auth_UserCompletesProtocol(bitstring,bitstring,bitstring,bitstring,bitstring).
+event auth_AppCompletesProtocol(bitstring,bitstring,bitstring, bitstring,bitstring, bitstring, bitstring, bitstring, bitstring,bitstring).
+event auth_UserCompletesProtocol(bitstring,bitstring,bitstring,bitstring).
 event auth_VerifierCompletesProtocol(bitstring,bitstring,bitstring,bitstring, bitstring,bitstring).
 
 (* App -> User *)
-event auth_AppSendsLastMessageToUser(bitstring,bitstring,bitstring,bitstring, bitstring, bitstring, bitstring, bitstring).
+event auth_AppSendsLastMessageToUser(bitstring,bitstring,bitstring, bitstring, bitstring, bitstring, bitstring).
 event verifierInConeOfUser(bitstring,bitstring,bitstring,bitstring).
 
 (* User -> App *)
-event auth_UserSendsLastMessageToApp(bitstring,bitstring,bitstring, bitstring,bitstring).
+event auth_UserSendsLastMessageToApp(bitstring,bitstring, bitstring,bitstring).
 
 (* Verifier -> App *)
 event auth_VerifierSendsLastMessageToApp(bitstring,bitstring,bitstring,bitstring,bitstring, bitstring).
 
 (* App -> Verifier *)
-event auth_AppSendsLastMessageToVerifier(bitstring, bitstring, bitstring, bitstring, bitstring,bitstring,bitstring,bitstring,bitstring,bitstring).
-event auth_AppCompletesProtocolWithUser(bitstring, bitstring, bitstring,bitstring, bitstring, bitstring,bitstring,bitstring, bitstring).
+event auth_AppSendsLastMessageToVerifier(bitstring, bitstring, bitstring, bitstring,bitstring,bitstring,bitstring,bitstring,bitstring).
+event auth_AppCompletesProtocolWithUser(bitstring, bitstring,bitstring, bitstring, bitstring,bitstring,bitstring, bitstring).
 
 
 
@@ -98,22 +117,24 @@ event auth_AppCompletesProtocolWithUser(bitstring, bitstring, bitstring,bitstrin
 
 let user(talksOnlyToHonest:bool, c:channel, u:bitstring, sku:SecretKey, a:bitstring, pka:PublicKey, v:bitstring, pkv:PublicKey, vc:bitstring, uri:bitstring) =
     (* Message 1 *)
-    new n_u:bitstring;
-    new sk_su:SecretKey;
-    let m_1 = aenc((tag1, n_u, pk(sk_su)), pka) in
+    new dhsecretU: exponent;
+    let dhpublicU = exp(g, dhsecretU) in
+    let m_1:bitstring = (KEXDHINIT, dhpublicU) in
     out(c, m_1);
 
-    (* Message 2 *)
     in(c, m_2:bitstring);
-    let (tag2':bitstring, n_u':bitstring, n_d:bitstring, symk_ua:SymmetricKey) = adec(m_2, sk_su) in
-    if (tag2=tag2') then
-    if (n_u = n_u') then
-    let m_2_bis = enc((tag2_bis, n_d, u), symk_ua) in
-    out(c, m_2_bis);
+    let (=KEXDHREPLY, dhpublicA: G, sign: bitstring) = m_2 in
+    let K = exp(dhpublicA, dhsecretU) in
+    let h = hash_fork((dhpublicU, dhpublicA, K)) in
+    if check_hash_k(h, sign, pka) = true then
+
+    let symk_ua_enc = hash_fork((K, h, keyEncCtoS)) in
+    let symk_ua_dec = hash_fork((K, h, keyEncStoC)) in
+    
 
     (* Message 7 *)
     in(c, m_7:bitstring);
-    let (tag7':bitstring, a':bitstring, v':bitstring, n_r: bitstring, vpr_body:bitstring) = dec(m_7, symk_ua) in
+    let (tag7':bitstring, a':bitstring, v':bitstring, n_r: bitstring, vpr_body:bitstring) = dec(m_7, symk_ua_dec) in
     if (a=a') then
     if (v=v') then
     if (tag7 = tag7') then
@@ -127,15 +148,15 @@ let user(talksOnlyToHonest:bool, c:channel, u:bitstring, sku:SecretKey, a:bitstr
     if (uri', a') = (uri, a) then
     let vp = ((n_c, vc, V, uri, a), sig((n_c, vc, V, uri, a), sku)) in
     let m'_8 = (tag8, u, n_r, vp) in
-    let m_8 = enc(m'_8, symk_ua) in
+    let m_8 = enc(m'_8, symk_ua_enc) in
 
-    event auth_UserSendsLastMessageToApp(m_1, m_2,m_2_bis, m_7,m_8);
+    event auth_UserSendsLastMessageToApp(m_1, m_2, m_7,m_8);
     out(c, m_8);
     (* --------------------------------------------------------------------------------------- *)
     (* Query Preparations *)
     
     if talksOnlyToHonest then
-        event auth_UserCompletesProtocol(m_1, m_2 ,m_2_bis, m_7, m_8)|
+        event auth_UserCompletesProtocol(m_1, m_2 , m_7, m_8)|
         out(ch(vp), vp_fromProver);
 
     0.
@@ -143,42 +164,45 @@ let user(talksOnlyToHonest:bool, c:channel, u:bitstring, sku:SecretKey, a:bitstr
 let app(talksOnlyToHonest:bool, c:channel, a:bitstring, ska:SecretKey, u:bitstring, pku:PublicKey, v:bitstring, pkv:PublicKey, uri:bitstring) =
 
     (* Message 1 *)
-    in(c, m_1:bitstring);
-    let (tag1':bitstring, n_u:bitstring, pk_su:PublicKey) = adec(m_1, ska) in
-    if (tag1 = tag1') then
 
-    (* Message 2 *)
-    new symk_ua: SymmetricKey;
-    new n_d:bitstring;
-    let m_2 = aenc((tag2, n_u, n_d, symk_ua), pk_su) in
+    in(c, m_1:bitstring);
+    let (=KEXDHINIT, dhpublicU: G) = m_1 in
+    new dhsecretAU: exponent;
+    let dhpublicAU = exp(g, dhsecretAU) in
+    let K = exp(dhpublicU, dhsecretAU) in
+    let h = hash_fork((dhpublicU, dhpublicAU, K)) in
+
+    let m_2:bitstring = (KEXDHREPLY, dhpublicAU, sig_hash_k(h, ska)) in 
     out(c, m_2);
 
-    in(c, m_2_bis:bitstring);
-    let (tag2_bis':bitstring, n_d':bitstring, u':bitstring) = dec(m_2_bis, symk_ua) in
-    if (tag2_bis' = tag2_bis) then
-    if (n_d'=n_d) then
+    let symk_ua_enc = hash_fork((K, h, keyEncStoC)) in
+    let symk_ua_dec = hash_fork((K, h, keyEncCtoS)) in
 
     (* Start contacting the Verifier for VPR generation *)
     (* Message 3 *)
-    new n_a:bitstring;
-    new sk_sa:SecretKey;
-    let m_3 = aenc((tag3, n_a, pk(sk_sa)), pkv) in
+
+    new dhsecretAC: exponent;
+    let dhpublicAC = exp(g, dhsecretAC) in
+    let m_3:bitstring = (KEXDHINITSERVER, dhpublicAC) in
     out(c, m_3);
 
-    (* Message 4 *)
     in(c, m_4:bitstring);
-    let (tag4':bitstring, n_a':bitstring, n_b:bitstring, symk_av:SymmetricKey) = adec(m_4, sk_sa) in
-    if (tag4' = tag4) then
-    if n_a = n_a' then
+    let (=KEXDHREPLYSERVER, dhpublicC: G, sign: bitstring) = m_4 in
+    let KC = exp(dhpublicC, dhsecretAC) in
+    let hc = hash_fork((dhpublicC, dhpublicAC, KC)) in
+    if check_hash_k(hc, sign, pkv) = true then
 
-    
+    let symk_av_enc = hash_fork((KC, hc, keyEncAtoC)) in
+    let symk_av_dec = hash_fork((KC, hc, keyEncCtoA)) in
+
+    new n_b:bitstring;
     (* Message 5 *)
-    let m_5 = enc((tag5, n_b, u, a, uri), symk_av) in
+    let m_5 = enc((tag5, n_b, u, a, uri), symk_av_enc) in
     out(c, m_5);
 
     (* Message 6 *)
     in(c, m_6:bitstring);
-    let (tag6':bitstring, v':bitstring, vpr_signed:bitstring) = dec(m_6, symk_av) in
+    let (tag6':bitstring, v':bitstring, vpr_signed:bitstring) = dec(m_6, symk_av_dec) in
     if (tag6=tag6') then
     let (n_c:bitstring, V:bitstring, vpr:bitstring) = vpr_signed in
     let (u':bitstring, uri':bitstring, a':bitstring) = vpr in
@@ -190,54 +214,58 @@ let app(talksOnlyToHonest:bool, c:channel, a:bitstring, ska:SecretKey, u:bitstri
 
     (* Message 7 *)
     new n_r:bitstring;
-    let m_7 = enc((tag7, a, v, n_r, vpr_signed), symk_ua) in
-    event auth_AppSendsLastMessageToUser(m_1,m_2,m_2_bis,m_3, m_4, m_5, m_6, m_7);
+    let m_7 = enc((tag7, a, v, n_r, vpr_signed), symk_ua_enc) in
+    event auth_AppSendsLastMessageToUser(m_1,m_2,m_3, m_4, m_5, m_6, m_7);
     out(c, m_7);
 
     (* Message 8 *)
     in(c, m_8:bitstring);
-    let (tag8':bitstring, u':bitstring, n_r':bitstring, vp_signed:bitstring) = dec(m_8, symk_ua) in
+    let (tag8':bitstring, u':bitstring, n_r':bitstring, vp_signed:bitstring) = dec(m_8, symk_ua_dec) in
     if (tag8 = tag8') then
     if (u=u') then
     if (n_r'=n_r) then
     let (vp:bitstring, sign_on_vp:bitstring) = vp_signed in
     if (check(vp, sign_on_vp, pku)) then
+    if (talksOnlyToHonest) then
+    event auth_AppCompletesProtocolWithUser(m_1,m_2, m_3, m_4, m_5, m_6, m_7,m_8);
 
     (* Message 9 *)
-    let m_9 = enc((tag9,vp_signed),symk_av) in
-    event auth_AppSendsLastMessageToVerifier(m_1, m_2, m_2_bis, m_3,m_4,m_5,m_6, m_7, m_8,m_9);
+    let m_9 = enc((tag9,vp_signed),symk_av_enc) in
+    event auth_AppSendsLastMessageToVerifier(m_1, m_2, m_3,m_4,m_5,m_6, m_7, m_8,m_9);
     out(c, m_9);
 
     
     (* Message 10 *)
     in(c, m_10:bitstring);
-    let (tag10':bitstring, tkn_access:bitstring, sign_tkn:bitstring) = dec(m_10, symk_av) in
+    let (tag10':bitstring, tkn_access:bitstring, sign_tkn:bitstring) = dec(m_10, symk_av_dec) in
     if (tag10' = tag10) then
     out(ch(( tkn_access, sig(tkn_access,ska) )),access_token_fromApp);
 
     if (talksOnlyToHonest) then
-    event auth_AppCompletesProtocol(m_1,m_2, m_2_bis, m_3,m_4,m_5,m_6,m_7, m_8, m_9,m_10);
-    event auth_AppCompletesProtocolWithUser(m_1,m_2, m_2_bis, m_3, m_4, m_5, m_6, m_7,m_8);
+    event auth_AppCompletesProtocol(m_1,m_2, m_3,m_4,m_5,m_6,m_7, m_8, m_9,m_10);
     
     0.
 
 let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, skv:SecretKey, u:bitstring, pku:PublicKey, a:bitstring, pka:PublicKey, uri:bitstring) =
 
-    (* Message 3 *)
-    in(c, m_3:bitstring);
-    let (tag3':bitstring, n_a:bitstring, pk_sa:PublicKey) = adec(m_3, skv) in
-    if (tag3' = tag3) then
 
-    (* Message 4 *)
-    new symk_av: SymmetricKey;
-    new n_b:bitstring;
-    let m_4 = aenc((tag4, n_a, n_b, symk_av), pk_sa) in
-    (* event verifierSendsSymKey(m_3, m_4);  Please create this event *)
+
+    in(c, m_3:bitstring);
+    let (=KEXDHINITSERVER, dhpublicA: G) = m_3 in
+    new dhsecretV: exponent;
+    let dhpublicV = exp(g, dhsecretV) in
+    let K = exp(dhpublicA, dhsecretV) in
+    let h = hash_fork((dhpublicA, dhpublicV, K)) in
+
+    let m_4:bitstring = (KEXDHREPLYSERVER, dhpublicV, sig_hash_k(h, skv)) in 
     out(c, m_4);
 
+    let symk_av_enc = hash_fork((K, h, keyEncCtoA)) in
+    let symk_av_dec = hash_fork((K, h, keyEncAtoC)) in
+    new n_b:bitstring;
     (* Message 5 *)
     in(c, m_5:bitstring);
-    let (tag5':bitstring, n_b':bitstring, u':bitstring, a':bitstring, uri':bitstring) = dec(m_5, symk_av) in
+    let (tag5':bitstring, n_b':bitstring, u':bitstring, a':bitstring, uri':bitstring) = dec(m_5, symk_av_enc) in
     if (tag5 = tag5') then
     if (n_b', u', uri', a') = (n_b, u, uri, a) then
 
@@ -247,14 +275,14 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, skv:SecretKey, u:bi
     let vpr = (u, uri, a) in
     (* let m'_6 = ((n_c, V, vpr), sig((n_c, V, vpr), skv)) in *)
     let m'_6 = (n_c, V, vpr) in 
-    let m_6 = enc((tag6, v, m'_6), symk_av)  in
+    let m_6 = enc((tag6, v, m'_6), symk_av_enc)  in
     event verifierInConeOfUser(m_3,m_4,m_5,m_6);
     out(c, m_6);
 
     (* Message 9 *)
     in(c, m_9:bitstring);
 
-    let (tag9': bitstring,vp_signed:bitstring) = dec(m_9, symk_av) in
+    let (tag9': bitstring,vp_signed:bitstring) = dec(m_9, symk_av_dec) in
     if (tag9=tag9') then
     let (vp:bitstring, sign_vp:bitstring) = vp_signed in
     let (n_c':bitstring, vc_signed':bitstring, V':bitstring, uri'':bitstring, a'':bitstring) = vp in
@@ -265,7 +293,7 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, skv:SecretKey, u:bi
     (* missing check on issuer*)
     if (n_c', u'', V', uri'', a'') = (n_c, u, V, uri, a) then
     new tkn_access:bitstring;
-    let m_10 = enc((tag10, tkn_access, sig(tkn_access,skv)),symk_av)  in
+    let m_10 = enc((tag10, tkn_access, sig(tkn_access,skv)),symk_av_enc)  in
     event auth_VerifierSendsLastMessageToApp(m_3,m_4,m_5,m_6, m_9, m_10);
     out(ch(( tkn_access, sig(tkn_access,skv) )),access_token_fromVerifier);
 
@@ -325,27 +353,27 @@ query attacker(vp_fromVerifier).
 query attacker(access_token_fromVerifier).
 
 
-query  m_handshakeReq:bitstring, m_handshakeResp:bitstring, m_complete:bitstring, m_vpr:bitstring, m_vp:bitstring, m_3:bitstring, m_4:bitstring, m_5:bitstring, m_6:bitstring; 
-    inj-event(auth_UserCompletesProtocol(m_handshakeReq, m_handshakeResp, m_complete, m_vpr, m_vp))
+query  m_handshakeReq:bitstring, m_handshakeResp:bitstring, m_vpr:bitstring, m_vp:bitstring, m_3:bitstring, m_4:bitstring, m_5:bitstring, m_6:bitstring; 
+    inj-event(auth_UserCompletesProtocol(m_handshakeReq, m_handshakeResp, m_vpr, m_vp))
     ==>
-    inj-event(auth_AppSendsLastMessageToUser(m_handshakeReq, m_handshakeResp, m_complete, m_3, m_4, m_5, m_6, m_vpr))
+    inj-event(auth_AppSendsLastMessageToUser(m_handshakeReq, m_handshakeResp, m_3, m_4, m_5, m_6, m_vpr))
     &&
     inj-event(verifierInConeOfUser(m_3, m_4, m_5, m_6)).
 
 query  m_handshakeReq:bitstring, m_handshakeResp:bitstring, m_complete:bitstring, m_handshake_ver:bitstring, m_handshake_resp_ver:bitstring, m_uri:bitstring, m_rule:bitstring, m_vpr:bitstring, m_vp:bitstring, m_accesstoken:bitstring, m_1:bitstring, m_2:bitstring, m_2_bis:bitstring, m_7:bitstring, m_8:bitstring; 
     inj-event(auth_VerifierCompletesProtocol(m_handshake_ver, m_handshake_resp_ver, m_uri, m_vpr, m_vp, m_accesstoken))
     ==>
-    inj-event(auth_AppSendsLastMessageToVerifier(m_1, m_2, m_2_bis, m_handshake_ver, m_handshake_resp_ver, m_uri, m_vpr, m_7, m_8, m_vp))
+    inj-event(auth_AppSendsLastMessageToVerifier(m_1, m_2, m_handshake_ver, m_handshake_resp_ver, m_uri, m_vpr, m_7, m_8, m_vp))
     &&
-    inj-event(auth_UserSendsLastMessageToApp(m_1, m_2, m_2_bis, m_7, m_8)). 
+    inj-event(auth_UserSendsLastMessageToApp(m_1, m_2, m_7, m_8)). 
 
 
 query  m_handshakeReq:bitstring, m_handshakeResp:bitstring, m_uri:bitstring, m_rule:bitstring, m_vp:bitstring, m_accesstoken:bitstring,  m_1:bitstring, m_2:bitstring,m_2_bis:bitstring, m_7:bitstring, m_8:bitstring;
-    inj-event(auth_AppCompletesProtocol(m_1, m_2, m_2_bis, m_handshakeReq, m_handshakeResp, m_uri, m_rule, m_7, m_8, m_vp, m_accesstoken))
+    inj-event(auth_AppCompletesProtocol(m_1, m_2, m_handshakeReq, m_handshakeResp, m_uri, m_rule, m_7, m_8, m_vp, m_accesstoken))
     ==>
     inj-event(auth_VerifierSendsLastMessageToApp(m_handshakeReq, m_handshakeResp, m_uri, m_rule, m_vp, m_accesstoken))
     &&
-    inj-event(auth_UserSendsLastMessageToApp(m_1, m_2, m_2_bis, m_7, m_8)). 
+    inj-event(auth_UserSendsLastMessageToApp(m_1, m_2, m_7, m_8)). 
 
 
 
@@ -386,9 +414,9 @@ process (*use root process for setup *)
 
     (*let agents dance*)
     (
-        ! open_user(c, u, sku, a, pk(ska), v, pk(skv), vc, uri)
-      | ! open_app(c, a, ska, u, pk(sku), v, pk(skv), uri)
-      | ! open_verifier(c, v, skv, u, pk(sku), a, pk(ska), uri)
+        ! open_user(c, u, sku, a, pk(ska), v, pk(skv), vc, uri_req)
+      | ! open_app(c, a, ska, u, pk(sku), v, pk(skv), uri_req)
+      | ! open_verifier(c, v, skv, u, pk(sku), a, pk(ska), uri_req)
     )
 
 (* --------------------------------------------------------------------------------------------------------- *)
