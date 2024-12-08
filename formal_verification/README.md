@@ -10,14 +10,14 @@ It is possible to check the output of our protocol [here](log/log.txt)
 ![MSC of ...](msc/msc_https_verification_vc.png)
 #### Result
 
-| Property  | Holds | Note |
-| ------------- | ------------- | ------------- |
-| Secret rule_fromVerifier | Yes  | The Verifiable Presentation Request sent from the Verifier remains secret, cannot be produced if the user is not the real user. |
-| Secret vp_fromProver | Yes  | The Verifiable Presentation sent by the Prover (User) remains secret. |
-| Secret access_token_fromVerifier | Yes  | The token given to the App to access resources remains secret. |
-| Authentication Verifier  | Yes  | The app is able to authenticate the verifier. |
-| Authentication App  | Yes  | The verifier is able to authenticate the app. |
-| Authentication User  | Yes  | The app is able to authenticate the user. |
+| Property                         | Holds | Note                                                                                                                            |
+| -------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Secret rule_fromVerifier         | Yes   | The Verifiable Presentation Request sent from the Verifier remains secret, cannot be produced if the user is not the real user. |
+| Secret vp_fromProver             | Yes   | The Verifiable Presentation sent by the Prover (User) remains secret.                                                           |
+| Secret access_token_fromVerifier | Yes   | The token given to the App to access resources remains secret.                                                                  |
+| Authentication Verifier          | Yes   | The app is able to authenticate the verifier.                                                                                   |
+| Authentication App               | Yes   | The verifier is able to authenticate the app.                                                                                   |
+| Authentication User              | Yes   | The app is able to authenticate the user.                                                                                       |
 A [[formal_verification/https_ver.pv|first implementation]] of this protocol has been proposed by only using HTTPS, without considering the symmetric key creation according to Diffie-Hellman (DH) Key Exchange. Anyway, to make it more realistic, we also investigated the security of the protocol including the DH Exchange in a [[formal_verification/https_ver_dh.pv|second implementation]].
 ### DIDComm
 The greatest difference with respect to HTTPS is that in this version we do not use encryption of the entire packet since we leverage the in-line encryption of the protocol presented in [[https://identity.foundation/didcomm-messaging/spec/ | DIDComm Spec v.2 ]]. In particular, the content of the message is encrypted using XChaCha20Poly1305 with a 256 bit key (XC20P), which guarantee anonymity and encryption; while the symmetric key is wrapped according to ECDH-ES+A256KW. The information about the symmetric key used ($k_i$) for the encryption are contained in the first part of the message, while $iv_i$ is sent in plaintext.
