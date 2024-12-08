@@ -125,7 +125,7 @@ let user(talksOnlyToHonest:bool, c:channel, u:bitstring, sku:SecretKey, a:bitstr
     (* Message 1 *)
     new dhsecretU: exponent;
     let dhpublicU = exp(g, dhsecretU) in
-    let m_1:bitstring = (KEXDHINIT, (genaenc(dhpublicU, pka), sig(genaenc(dhpublicU, pka), sku))) in
+    let m_1:bitstring = (KEXDHINIT, genaenc(dhpublicU, pka), sig(genaenc(dhpublicU, pka), sku)) in
     out(c, m_1);
 
     in(c, m_2:bitstring);
@@ -190,7 +190,7 @@ let app(talksOnlyToHonest:bool, c:channel, a:bitstring, ska:SecretKey, u:bitstri
 
     new dhsecretAC: exponent;
     let dhpublicAC = exp(g, dhsecretAC) in
-    let m_3:bitstring = (KEXDHINITSERVER, (genaenc(dhpublicAC, pkv), sig(genaenc(dhpublicAC, pkv), ska))) in
+    let m_3:bitstring = (KEXDHINITSERVER, genaenc(dhpublicAC, pkv), sig(genaenc(dhpublicAC, pkv), ska)) in
     out(c, m_3);
 
     in(c, m_4:bitstring);
