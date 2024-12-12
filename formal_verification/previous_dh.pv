@@ -1,0 +1,298 @@
+(* SSH v2 *)
+
+(* In fact, we consider a simplified version of SSH, without negociation.
+   We assume that the chosen parameters are 
+   - the standard Diffie-Hellman key exchange
+   - a symmetric encryption algorithm (different from none)
+   - a mac algorithm (different from none)
+   - no compression
+   We do not consider key re-exchange.
+
+   Only the transport layer protocol of SSH is considered. 
+   We do not consider the SSH authentication protocol.
+
+   In the computation of the mac, we ignore the sequence of the
+   messages (difficult to model in our framework). Also note
+   that the mac is really useful only when the encryption is malleable,
+   and we model a perfect encryption that is not malleable.
+ *)
+
+free c: channel.
+
+type key.
+type tag.
+type ktag.
+type pkey.
+type skey.
+type G.
+type exponent.
+
+const uri_req:bitstring.
+(* Shared key encryption *)
+
+fun enc(key, bitstring): bitstring.
+reduc forall x: bitstring, y: key; dec(y, enc(y,x)) = x.
+
+
+fun encKey(key, key): bitstring.
+reduc forall x: key, y: key; decKey(y, encKey(y,x)) = x.
+
+(* Hash function *)
+
+fun H(bitstring):key.
+fun hash(bitstring):bitstring.
+
+(* Non-message revealing signatures *)
+
+fun pk(skey): pkey.
+fun nmrsign(skey, key): bitstring.
+reduc forall x: key, y: skey; checknmrsign(pk(y), nmrsign(y,x), x) = true.
+
+
+fun signGen(G, skey): bitstring.
+reduc forall x: G, y: skey; checksignGen(x, signGen(x, y), pk(y)) = true.
+
+(* Diffie-Hellman *)
+
+const g: G.
+fun exp(G, exponent): G.
+equation forall x: exponent, y: exponent; exp(exp(g, x), y) = exp(exp(g, y), x).
+
+
+
+
+
+(* START asymmetric encryption *)
+fun aenc(bitstring(*the message*), pkey):bitstring (*asymmetric encrypt input msg*).
+reduc forall msg:bitstring,sk:skey; adec(aenc(msg,pk(sk)),sk)=msg (*asymmetric decrypt*).
+(* END Asymmetric encryption *)
+
+(* START asymmetric encryption *)
+fun genaenc(G(*the message*), pkey):bitstring (*asymmetric encrypt input msg*).
+reduc forall msg:G,sk:skey; genadec(genaenc(msg,pk(sk)),sk)=msg (*asymmetric decrypt*).
+(* END Asymmetric encryption *)
+
+(* Mac *)
+
+fun mac(key, bitstring): bitstring.
+
+fun genToBit(G):bitstring.
+reduc forall gen:G; bitToGen(genToBit(gen)) = gen.
+
+(* START digital signature *)
+fun sig(bitstring(*the message*), skey):bitstring(*the signature value*).
+reduc forall msg:bitstring,sk:skey; check(msg,sig(msg,sk),pk(sk))=true (*check(msg,sigVal,pk)*).
+(* END digital signature *)
+
+(* Constants *)
+
+const KEXDHINIT, KEXDHREPLY, KEXDHINITVER, KEXDHREPLYVER : tag [data].
+
+const keyEncStoC, keyEncCtoS, keyEncStoT, keyEncTtoS: ktag [data].
+
+const gen_u_a, gen_a_u, gen_a_v, gen_v_a: ktag [data].
+
+
+
+event auth_ServerSendsLastMessageToClient(bitstring, bitstring, bitstring, bitstring, bitstring, bitstring).
+
+event auth_ClientCompleteProtocol(bitstring,bitstring).
+
+event auth_ThirdInConeOfClient(bitstring,bitstring, bitstring, bitstring).
+
+(* Secrecy assumptions *)
+
+(*not attacker(new dhsecretC).
+not attacker(new dhsecretS).
+not attacker(new SSigKey).*)
+
+free secretC: bitstring [private].
+query attacker(secretC).
+
+
+let processClient(talksonlytohonest: bool, c:channel, u: bitstring, CSigKey:skey,  CVerKey:pkey, exp_u:exponent, a: bitstring,SVerKey: pkey, exp_a:G, v:bitstring, VVerKey: pkey, exp_v:G, vc:bitstring, uri:bitstring) =
+    new dhsecretC: exponent;
+    let dhpublicC = exp(g, dhsecretC) in
+
+    let m1 = (KEXDHINIT, dhpublicC, aenc((genToBit(dhpublicC), SVerKey), SVerKey),  sig((genToBit(dhpublicC), SVerKey),CSigKey)) in
+    out(c, m1);
+    in(c, m2:bitstring);
+    let (=KEXDHREPLY,  dhpublicS:G,dhpublicSEnc: bitstring, sign: bitstring) = m2 in
+    if dhpublicS <> g then
+    let (dhpublicSbit:bitstring) = adec(dhpublicSEnc, CSigKey) in
+    let K = exp(dhpublicS, dhsecretC) in
+    if dhpublicSbit = (genToBit(K),CVerKey) then
+    let h = H((SVerKey, dhpublicC, dhpublicS, K)) in
+    if (check(dhpublicSbit, sign, SVerKey)) then
+    let enckeyCtoS = H((K, h, keyEncCtoS)) in
+    let enckeyStoC = H((K, h, keyEncStoC)) in
+   
+
+    
+    new CsecchannelToS: channel;
+
+    (* Send a secret if we are connected to a honest server *)
+    if talksonlytohonest then
+      event auth_ClientCompleteProtocol(m1, m2)|
+      out(CsecchannelToS, secretC)
+   .
+
+(* Find a way to encrypt g^something with the pk of other party. Actually I tried with concatenation *)
+(* Nemmeno convertendo il generatore a bitstring funziona. aenc(genToBit(dhpublicST), ThirdVerKey) *)
+(* Poissiamo proare ad usare la coppia dhpublicST + public dell'altro, come ad esempio viene fatto nella generazione dell'hash *)
+
+let processApp(talksonlytohonest: bool, c:channel,  a:bitstring, SSigKey: skey, SVerKey: pkey, exp_a:exponent, u:bitstring, CVerKey: pkey, exp_u:G, v:bitstring, ThirdVerKey: pkey, exp_v:G, uri:bitstring) =
+   new dhsecretST: exponent;
+   new symk_0: key;
+   (* encKey, first the key to use, then the key to encrypt *)
+   let dhpublicST = exp(g, dhsecretST) in
+    let m0 = (KEXDHINITVER, dhpublicST, aenc((genToBit(dhpublicST), ThirdVerKey), ThirdVerKey), sig((genToBit(dhpublicST), ThirdVerKey),SSigKey)) in
+    (*m0 might be sent to the attacker and encrypted with its key e dunque anche g^secretST*)
+    (*the attacker also know pka *)
+    out(c, m0);
+
+    in(c, m01:bitstring);
+    let (=KEXDHREPLYVER, dhpublicT:G, dhpublicTEnc: bitstring, sign: bitstring) = m01 in
+    let (dhpublicTbit:bitstring) = adec(dhpublicTEnc, SSigKey) in
+    if (dhpublicT <> g = true) then
+    let K2 = exp(dhpublicT, dhsecretST) in
+    if dhpublicTbit = (genToBit(K2), SVerKey) then
+    
+    let h2 = H((SVerKey, dhpublicT, dhpublicST, K2)) in
+    if (check(dhpublicTbit, sign, ThirdVerKey)) then
+
+    let enckeyStoT = H((K2, h2, keyEncStoT)) in
+    let enckeyTtoS = H((K2, h2, keyEncTtoS)) in
+
+
+    in(c, m01bis:bitstring);
+    let testForVer:bitstring = dec(enckeyTtoS, m01bis) in
+
+    new testForVer2:bitstring;
+    let m01tris = enc(enckeyStoT, testForVer2) in
+    out(c, m01tris);
+    
+
+    in(c, m1:bitstring);
+    let (=KEXDHINIT, dhpublicC:G, dhpublicCEnc: bitstring, signdhpublicC: bitstring) = m1 in
+    let (dhpublicCbit:bitstring) = adec(dhpublicCEnc, SSigKey) in
+    if dhpublicCbit = (genToBit(dhpublicC), SVerKey) then
+    if (check(dhpublicCbit, signdhpublicC, CVerKey)) then
+    new dhsecretS: exponent;
+    let dhpublicS = exp(g, dhsecretS) in
+    if dhpublicC <> g then
+    let K = exp(dhpublicC, dhsecretS) in
+    let h = H((SVerKey, dhpublicC, dhpublicS, K)) in
+    let m2:bitstring = (KEXDHREPLY, dhpublicS, aenc((genToBit(K), CVerKey), CVerKey), sig((genToBit(K), CVerKey),SSigKey)) in
+    
+
+    let enckeyCtoS = H((K, h, keyEncCtoS)) in
+    let enckeyStoC = H((K, h, keyEncStoC)) in
+
+
+    event auth_ServerSendsLastMessageToClient(m0, m01, m01bis, m01tris, m1, m2);
+out(c, m2);
+    0.
+
+let processVerifier(talksonlytohonest: bool,  c:channel, v:bitstring, TSigkey: skey, TVerKey: pkey, exp_v:exponent, u:bitstring, CVerKey: pkey, exp_u:G, a:bitstring, SVerKey: pkey, exp_a:G, uri:bitstring) =
+
+
+    in(c, m1:bitstring);
+    let (=KEXDHINITVER,dhpublicS:G, dhpublicSEnc: bitstring, signdhpublicS: bitstring) = m1 in
+    let (dhpublicSbit:bitstring) = adec(dhpublicSEnc, TSigkey) in
+    if dhpublicSbit = (genToBit(dhpublicS), TVerKey) then
+    if (check(dhpublicSbit, signdhpublicS, SVerKey)) then
+
+    new dhsecretT: exponent;
+    let dhpublicT = exp(g, dhsecretT) in
+    let K = exp(dhpublicS, dhsecretT) in
+    if dhpublicS <> g then
+    let h = H((SVerKey, dhpublicT, dhpublicS, K)) in
+    let m2:bitstring = (KEXDHREPLYVER,dhpublicT, aenc((genToBit(K),SVerKey), SVerKey), sig((genToBit(K), SVerKey),TSigkey)) in
+    out(c, m2);
+    
+    let enckeyStoT = H((K, h, keyEncStoT)) in
+    let enckeyTtoS = H((K, h, keyEncTtoS)) in
+
+    new test:bitstring;
+    let m3 = enc(enckeyTtoS, test) in
+    out(c, m3);
+
+    in(c, m4:bitstring);
+    let x:bitstring = dec(enckeyStoT, m4) in
+
+    event auth_ThirdInConeOfClient(m1, m2, m3, m4);
+    new SsecchannelToC: channel;
+    new SsecchannelFromC: channel;
+
+
+    0.
+
+
+query  m0:bitstring, m01:bitstring, m1:bitstring, m1bis:bitstring, m2:bitstring, m3:bitstring;
+    inj-event(auth_ClientCompleteProtocol(m2, m3))
+    ==>
+    inj-event(auth_ServerSendsLastMessageToClient(m0, m01, m1, m1bis, m2, m3)) && inj-event(auth_ThirdInConeOfClient(m0, m01, m1, m1bis)).
+
+
+free sk_E:skey. (*other agent may or may not be honest, but we don't know*)
+free sk_E2:skey. (*other agent may or may not be honest, but we don't know*)
+free e:bitstring.
+free e2:bitstring.
+free exp_e1:exponent.
+free exp_e2:exponent.
+process
+
+  (* create identities *)
+    new u:bitstring;
+    new a:bitstring;
+    new v:bitstring;
+    new i: bitstring;
+
+    (*advertise identities*)
+    out(c,u);
+    out(c,a);
+    out(c,v);
+    out(c,i);
+
+    (*declare secret keys*)
+    new sku:skey;
+    new ska:skey;
+    new skv:skey;
+    new ski: skey;
+
+    new exp_u:exponent;
+    new exp_a:exponent;
+    new exp_v:exponent;
+    new exp_i:exponent;
+
+    out(c, exp(g, exp_u));
+    out(c, exp(g, exp_a));
+    out(c, exp(g, exp_v));
+    out(c, exp(g, exp_i));
+    
+    (*advertise public keys*)
+    out(c,pk(sku));
+    out(c,pk(ska));
+    out(c,pk(skv));
+    out(c,pk(ski));
+
+    let vc = ((i, u), sig((i, u), ski)) in
+
+
+    (*let agents dance*)
+    (
+      ! processClient(true, c, u, sku, pk(sku), exp_u, a, pk(ska), exp(g, exp_a), v, pk(skv),exp(g, exp_v),  vc, uri_req) |
+      ! processClient(false, c, u, sku, pk(sku),exp_u, e, pk(sk_E), exp(g, exp_e1),v, pk(skv),exp(g, exp_v),  vc, uri_req) |
+      ! processClient(false, c, u, sku, pk(sku),exp_u, a, pk(ska),exp(g, exp_a), e2, pk(sk_E2),  exp(g, exp_e2), vc, uri_req) |
+      ! processClient(false, c, u, sku, pk(sku),exp_u, e, pk(sk_E),exp(g, exp_e1),e2, pk(sk_E2), exp(g, exp_e2), vc, uri_req) |
+      ! processApp(true, c, a, ska, pk(ska), exp_a, u, pk(sku), exp(g, exp_u), v, pk(skv),  exp(g, exp_v), uri_req) |
+      ! processApp(false, c, a, ska, pk(ska),exp_a, e, pk(sk_E),exp(g, exp_e1), v, pk(skv), exp(g, exp_v), uri_req) |
+      ! processApp(false, c, a, ska, pk(ska),exp_a, u, pk(sku), exp(g, exp_u), e2, pk(sk_E2), exp(g, exp_e2), uri_req) |
+      ! processApp(false, c, a, ska, pk(ska), exp_a, e, pk(sk_E), exp(g, exp_e1),e2, pk(sk_E2),  exp(g, exp_e2), uri_req) |
+      ! processVerifier(true, c, v, skv, pk(skv),exp_v,u, pk(sku), exp(g, exp_u),  a, pk(ska), exp(g, exp_a),  uri_req) |
+      ! processVerifier(false, c, v, skv, pk(skv), exp_v,e, pk(sk_E),exp(g, exp_e1), a, pk(ska), exp(g, exp_a), uri_req)|
+      ! processVerifier(false, c, v, skv, pk(skv), exp_v,u, pk(sku), exp(g, exp_u), e2, pk(sk_E2),  exp(g, exp_e2), uri_req)|
+      ! processVerifier(false, c, v, skv, pk(skv), exp_v, e, pk(sk_E),exp(g, exp_e1), e2, pk(sk_E2), exp(g, exp_e2), uri_req)
+    )
+    
