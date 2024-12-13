@@ -125,7 +125,7 @@ let user(talksOnlyToHonest:bool, c:channel, u:bitstring, sku:SecretKey, a:bitstr
     (* Message 1 *)
     new dhsecretU: exponent;
     let dhpublicU = exp(g, dhsecretU) in
-    let m_1:bitstring = (KEXDHINIT, genaenc(dhpublicU, pka), sig(genaenc(dhpublicU, pka), sku)) in
+    let m_1:bitstring = (KEXDHINIT, dhpublicU) in
     out(c, m_1);
 
     in(c, m_2:bitstring);
@@ -171,11 +171,9 @@ let app(talksOnlyToHonest:bool, c:channel, a:bitstring, ska:SecretKey, u:bitstri
     (* Message 1 *)
 
     in(c, m_1:bitstring);
-    let (=KEXDHINIT, dhpublicUenc: bitstring, sigDHUenc:bitstring) = m_1 in
+    let (=KEXDHINIT, dhpublicU: G) = m_1 in
     new dhsecretAU: exponent;
     let dhpublicAU = exp(g, dhsecretAU) in
-    let dhpublicU = genadec(dhpublicUenc, ska) in
-    if check(dhpublicUenc,sigDHUenc, pku) = true then
     let K = exp(dhpublicU, dhsecretAU) in
     let h = hash_fork((dhpublicU, dhpublicAU, K)) in
 
@@ -190,7 +188,7 @@ let app(talksOnlyToHonest:bool, c:channel, a:bitstring, ska:SecretKey, u:bitstri
 
     new dhsecretAC: exponent;
     let dhpublicAC = exp(g, dhsecretAC) in
-    let m_3:bitstring = (KEXDHINITSERVER, genaenc(dhpublicAC, pkv), sig(genaenc(dhpublicAC, pkv), ska)) in
+    let m_3:bitstring = (KEXDHINITSERVER, dhpublicAC) in
     out(c, m_3);
 
     in(c, m_4:bitstring);
@@ -254,11 +252,9 @@ let app(talksOnlyToHonest:bool, c:channel, a:bitstring, ska:SecretKey, u:bitstri
 let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, skv:SecretKey, u:bitstring, pku:PublicKey, a:bitstring, pka:PublicKey, i:bitstring, pki:PublicKey,  uri:bitstring) =
 
     in(c, m_3:bitstring);
-    let (=KEXDHINITSERVER, dhpublicAenc: bitstring, sigDHAenc:bitstring) = m_3 in
+    let (=KEXDHINITSERVER, dhpublicA: G) = m_3 in
     new dhsecretV: exponent;
     let dhpublicV = exp(g, dhsecretV) in
-    let dhpublicA = genadec(dhpublicAenc, skv) in
-    if check(dhpublicAenc,sigDHAenc, pka) = true then
     let K = exp(dhpublicA, dhsecretV) in
     let h = hash_fork((dhpublicA, dhpublicV, K)) in
 

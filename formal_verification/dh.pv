@@ -122,7 +122,7 @@ let processClient(talksonlytohonest: bool, c:channel, u: bitstring, CSigKey:skey
     if dhpublicSbit = genToBit(exp(dhpublicS, dhsecretC)) then
     let K = exp(dhpublicS, dhsecretC) in
     let h = H((SVerKey, dhpublicC, dhpublicS, K)) in
-    if (check(dhpublicSbit, sign, SVerKey)) then
+      if (check(dhpublicSbit, sign, SVerKey)) then
     let enckeyCtoS = H((K, h, keyEncCtoS)) in
     let enckeyStoC = H((K, h, keyEncStoC)) in
    
