@@ -80,13 +80,10 @@ equation forall x: exponent, y: exponent; exp(exp(g, x), y) = exp(exp(g, y), x).
 
 (* SECRECY *)
 
-free rule_fromVerifier: bitstring [private].
 free vp_fromProver: bitstring [private].
-free vp_fromVerifier: bitstring [private].
-free cred_fromVerifier: bitstring [private].
 free resource_fromVerifier: bitstring [private].
+free resource_fromApp: bitstring [private].
 
-free vp_fromApp: bitstring [private].
 
 (* AUTHENTICATION *)
 
@@ -254,24 +251,28 @@ let app(talksOnlyToHonest:bool, c:channel, a:bitstring, exp_a:exponent, ska:Secr
     let (symk7_enc:bitstring, m8_enc:bitstring) = m_8 in
     let (=tag8, (u':bitstring, vp_signed:bitstring)) = dec(m8_enc, skdec(symk7_enc, symk_ua_dec)) in
     (*if (u=u') then*)
+    
     let (vp:bitstring, sign_on_vp:bitstring) = vp_signed in
     let (n_c'':bitstring, vc_signed':bitstring, uri'':bitstring, a'':bitstring) = vp in
     let vp_2_prev:bitstring = ((vp, sign_on_vp), sig((vp, sign_on_vp), ska)) in
     if (check(vp, sign_on_vp, pku)) then
 
     (* Message 9 *)
-    let m_9 = enc((tag9,vp_2_prev),symk_av_enc) in
+    new symk8:SymmetricKey;
+    let symk8_enc = skenc(symk8, symk_av_enc) in
+    let m_9 = (symk8_enc, enc((tag9,vp_2_prev),symk8)) in
     event auth_AppSendsLastMessageToVerifier(m_1, m_2, m_3,m_4,m_5,m_6, m_7, m_8,m_9);
     out(c, m_9);
 
     
     (* Message 10 *)
     in(c, m_10:bitstring);
-    let (=tag10, resource:bitstring) = dec(m_10, symk_av_dec) in
+    let (symk9_enc:bitstring, m10_enc:bitstring) = m_10 in
+    let (=tag10, res:bitstring) = dec(m10_enc, skdec(symk9_enc, symk_av_dec)) in
 
     if (talksOnlyToHonest) then
         event auth_AppCompletesProtocol(m_1,m_2, m_3,m_4,m_5,m_6,m_7, m_8, m_9,m_10)|
-        out(ch(vp), vp_fromApp);
+        out(ch(res), resource_fromApp);
     
     0.
 
@@ -317,7 +318,8 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, exp_v:exponent, skv
 
     (* Message 9 *)
     in(c, m_9:bitstring);
-    let (=tag9, vp_signed_2:bitstring) = dec(m_9, symk_av_dec) in
+    let (symk8_enc:bitstring, m9_enc:bitstring) = m_9 in
+    let (=tag9, vp_signed_2:bitstring) = dec(m9_enc, skdec(symk8_enc, symk_av_dec)) in
     let (vp_signed:bitstring, vp_sign_2:bitstring) = vp_signed_2 in
     if (check(vp_signed, vp_sign_2, pka)) then
 
@@ -332,7 +334,9 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, exp_v:exponent, skv
     (* missing check on issuer*)
     if (n_c', u'', uri'', a'') = (n_c, u, uri, a) then
     new resource:bitstring;
-    let m_10 = enc((tag10, resource),symk_av_enc)  in
+    new symk9:SymmetricKey;
+    let symk9_enc=skenc(symk9, symk_av_enc) in
+    let m_10 = (symk9_enc, enc((tag10, resource),symk9))  in
     event auth_VerifierSendsLastMessageToApp(m_3,m_4,m_5,m_6, m_9, m_10);
 
     if talksOnlyToHonest then
@@ -399,9 +403,9 @@ let open_verifier(c:channel, v:bitstring, exp_v:exponent,  skv:SecretKey, u:bits
 
 (* SECRECY *)
 
-(*query attacker(vp_fromProver). 
-query attacker(vp_fromApp). 
-query attacker(resource_fromVerifier). *)
+query attacker(vp_fromProver). 
+query attacker(resource_fromApp). 
+query attacker(resource_fromVerifier).
 
 
 query  m_handshakeReq:bitstring, m_handshakeResp:bitstring, m_vpr:bitstring, m_vp:bitstring, m_3:bitstring, m_4:bitstring, m_5:bitstring, m_6:bitstring; 
