@@ -180,7 +180,7 @@ let app(talksOnlyToHonest:bool, c:channel, a:bitstring, exp_a:exponent, ska:Secr
     let (=KEXDHINIT, g_su_enc: bitstring, symk0_enc:bitstring, g_su_signed_enc:bitstring) = m_1 in
     let g_su = genadec(g_su_enc, ska) in
     let K_temp = exp(g_su, exp_a) in
-    let h_temp = hash_fork((g_su, exp_a, K_temp)) in
+    let h_temp = hash_fork((g_su, exp(g, exp_a), K_temp)) in
     let symk0 = skdec(symk0_enc, h_temp) in
     let (g_su':G, g_su_sign:bitstring) = dec(g_su_signed_enc, symk0) in
     if gencheck(g_su, g_su_sign, pku) then
@@ -305,8 +305,8 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, exp_v:exponent, skv
     let (=KEXDHINITSERVER, g_sav_enc: bitstring, symk2_enc:bitstring, g_sav_enc_signed:bitstring) = m_3 in
     let g_sav = genadec(g_sav_enc, skv) in
     let K0 = exp(g_sav, exp_v) in
-    let h = hash_fork((g_sav, exp_v, K0)) in
-    let symk_2 = skdec(symk2_enc, h) in
+    let h0 = hash_fork((exp(g, exp_v), g_sav, K0)) in
+    let symk_2 = skdec(symk2_enc, h0) in
     let (g_sav':G, sign_g_sav:bitstring) = dec(g_sav_enc_signed, symk_2) in
     if gencheck(g_sav, sign_g_sav, pka) then
     
@@ -364,7 +364,7 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, exp_v:exponent, skv
     let (=KEXDHINITTTP, g_sttp_enc: bitstring, symk10_enc:bitstring, g_sttp_enc_signed:bitstring) = m_10 in
     let g_sttp = genadec(g_sttp_enc, skv) in
     let K3_temp = exp(g_sttp, exp_v) in
-    let h3_temp = hash_fork((g_sttp, exp_v, K3_temp)) in
+    let h3_temp = hash_fork((g_sttp, exp(g, exp_v), K3_temp)) in
     let symk_10 = skdec(symk10_enc, h3_temp) in
     let (g_sttp':G, sign_g_sttp:bitstring) = dec(g_sttp_enc_signed, symk_10) in
     if gencheck(g_sttp, sign_g_sttp, pkttp) then
@@ -429,7 +429,7 @@ let trustedThirdParty(talksOnlyToHonest:bool, c:channel, ttp:bitstring, exp_ttp:
     new sttp: exponent;
     let g_sttp = exp(g, sttp) in
     let K0 = exp(exp_v, sttp) in
-    let h0 = hash_fork((g_sttp, exp_a, K0)) in
+    let h0 = hash_fork((g_sttp, exp_v, K0)) in
     new symk_0:SymmetricKey;
     let diddoc_sttp_signed = (g_sttp, gensig(g_sttp,sk_ttp)) in
     let m_10:bitstring = (KEXDHINITTTP, genaenc(g_sttp, pkv), skenc(symk_0, h0), enc(diddoc_sttp_signed, symk_0)) in

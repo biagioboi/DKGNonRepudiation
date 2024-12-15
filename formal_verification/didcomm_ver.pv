@@ -175,7 +175,7 @@ let app(talksOnlyToHonest:bool, c:channel, a:bitstring, exp_a:exponent, ska:Secr
     let (=KEXDHINIT, g_su_enc: bitstring, symk0_enc:bitstring, g_su_signed_enc:bitstring) = m_1 in
     let g_su = genadec(g_su_enc, ska) in
     let K_temp = exp(g_su, exp_a) in
-    let h_temp = hash_fork((g_su, exp_a, K_temp)) in
+    let h_temp = hash_fork((g_su, exp(g, exp_a), K_temp)) in
     let symk0 = skdec(symk0_enc, h_temp) in
     let (g_su':G, g_su_sign:bitstring) = dec(g_su_signed_enc, symk0) in
     if gencheck(g_su, g_su_sign, pku) then
@@ -282,7 +282,7 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, exp_v:exponent, skv
     let (=KEXDHINITSERVER, g_sav_enc: bitstring, symk2_enc:bitstring, g_sav_enc_signed:bitstring) = m_3 in
     let g_sav = genadec(g_sav_enc, skv) in
     let K0 = exp(g_sav, exp_v) in
-    let h = hash_fork((g_sav, exp_v, K0)) in
+    let h = hash_fork((exp(g, exp_v), g_sav, K0)) in
     let symk_2 = skdec(symk2_enc, h) in
     let (g_sav':G, sign_g_sav:bitstring) = dec(g_sav_enc_signed, symk_2) in
     if gencheck(g_sav, sign_g_sav, pka) then
@@ -291,7 +291,7 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, exp_v:exponent, skv
     new sc: exponent;
     let g_sc = exp(g, sc) in
     let K = exp(g_sav, sc) in
-    let h = hash_fork((g_sav, g_sc, K)) in
+    let h = hash_fork((g_sc, g_sav, K)) in
     new symk_k3:SymmetricKey;
     let diddoc_sc_signed = (g_sc, gensig(g_sc, skv)) in
     let m_4:bitstring = (KEXDHREPLYSERVER, genaenc(g_sc, pka), skenc(symk_k3, h), enc(diddoc_sc_signed, symk_k3)) in 
