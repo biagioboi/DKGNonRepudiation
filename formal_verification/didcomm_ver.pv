@@ -145,22 +145,22 @@ let user(talksOnlyToHonest:bool, c:channel, u:bitstring, exp_u:exponent, sku:Sec
 
     in(c, m_7:bitstring);
     let (symk6_enc:bitstring, m7_enc:bitstring) = m_7 in
-    let (=tag7, vpr_signed:bitstring) = dec(m7_enc, skdec(symk6_enc, symk_ua_dec))  in
+    let (=tag7, n_r:bitstring,  v':bitstring, vpr_signed:bitstring) = dec(m7_enc, skdec(symk6_enc, symk_ua_dec))  in
     let (vpr_rec:bitstring, sig_vpr_2:bitstring) = vpr_signed in (* Here it is the message *)
-    let (rule':bitstring, usr':bitstring, n_c:bitstring) = vpr_rec in
+    let (v'':bitstring, rule':bitstring, n_c:bitstring) = vpr_rec in
     let (u':bitstring, i':bitstring, uri':bitstring, a':bitstring) = rule' in
     (*  We trust the signature applied by the verifier because we trust the app, which already checked on this, 
         so we just check the signature applied by the app *)
     if (check(vpr_rec, sig_vpr_2, pka)) then
-    if ((u', uri', a') = (u, uri, a)) then
+    if ((u', uri', a', v'') = (u, uri, a, v)) then
     
     (* Message 8 *)
     (* if (check(vpr_body, vpr_body_signature, pkv)) then *)
     (*if (uri', a') = (uri, a) then*)
-    let vp = ((n_c, vc, uri, a), sig((n_c, vc, uri, a), sku)) in
+    let vp = ((u, v, n_c, vc, uri, a), sig((u, v, n_c, vc, uri, a), sku)) in
     new symk7:SymmetricKey;
     let symk7_enc = skenc(symk7, symk_ua_enc) in
-    let m_8 = (symk7_enc, enc((tag8, (u, vp)), symk_ua_enc)) in
+    let m_8 = (symk7_enc, enc((tag8, n_r, (u, vp)), symk_ua_enc)) in
 
     event auth_UserSendsLastMessageToApp(m_1, m_2, m_7,m_8);
     out(c, m_8);
@@ -227,7 +227,7 @@ let app(talksOnlyToHonest:bool, c:channel, a:bitstring, exp_a:exponent, ska:Secr
     (* Message 4 *)
     new symk4: SymmetricKey;
     let symk4_enc = skenc(symk4, symk_av_enc) in
-    let m_5 = (symk4_enc, enc((tag5, (i, u, uri, a)), symk4)) in
+    let m_5 = (symk4_enc, enc((tag5, (i, v, u, uri, a)), symk4)) in
     out(c,m_5);
 
 
@@ -235,32 +235,33 @@ let app(talksOnlyToHonest:bool, c:channel, a:bitstring, exp_a:exponent, ska:Secr
     in(c, m_6:bitstring);
     let (symk5_enc:bitstring, m6_enc:bitstring) = m_6 in
     let (=tag6, dec_vpr:bitstring) = dec(m6_enc, skdec(symk5_enc, symk_av_dec))  in
-    let (rule':bitstring, usr':bitstring, n_c':bitstring) = dec_vpr in
+    let (v':bitstring, rule':bitstring, n_c':bitstring) = dec_vpr in
     let(u':bitstring, i':bitstring, uri':bitstring, a':bitstring) = rule' in
-    if ((u', i', uri', a') = (u, i, uri, a)) then  (*Who knows, maybe server is starting behaving maliciously *)
+    if ((v', u', i', uri', a') = (v, u, i, uri, a)) then  (*Who knows, maybe server is starting behaving maliciously *)
 
 
     (* End contacting the Verifier for VPR generation *)
 
     (* Message 7 *)
     new n_r:bitstring;
-    let vpr_signed = ((rule', usr', n_c'), sig((rule', usr', n_c'), ska)) in
+    let vpr_signed = (dec_vpr, sig(dec_vpr, ska)) in
     new symk6:SymmetricKey;
     let symk6_enc = skenc(symk6, symk_ua_enc) in
-    let m_7 = (symk6_enc, enc((tag7, vpr_signed), symk6)) in
+    let m_7 = (symk6_enc, enc((tag7, n_r, v, vpr_signed), symk6)) in
     event auth_AppSendsLastMessageToUser(m_1,m_2,m_3, m_4, m_5, m_6, m_7);
     out(c, m_7);
 
     (* Message 8 *)
     in(c, m_8:bitstring);
     let (symk7_enc:bitstring, m8_enc:bitstring) = m_8 in
-    let (=tag8, (u':bitstring, vp_signed:bitstring)) = dec(m8_enc, skdec(symk7_enc, symk_ua_dec)) in
-    (*if (u=u') then*)
+    let (=tag8, n_r':bitstring, (u':bitstring, vp_signed:bitstring)) = dec(m8_enc, skdec(symk7_enc, symk_ua_dec)) in
+    if (u, n_r) = (u', n_r') then
     
     let (vp:bitstring, sign_on_vp:bitstring) = vp_signed in
-    let (n_c'':bitstring, vc_signed':bitstring, uri'':bitstring, a'':bitstring) = vp in
+    let (u'':bitstring, v'':bitstring, n_c'':bitstring, vc_signed':bitstring, uri'':bitstring, a'':bitstring) = vp in
     let vp_2_prev:bitstring = ((vp, sign_on_vp), sig((vp, sign_on_vp), ska)) in
     if (check(vp, sign_on_vp, pku)) then
+    if (u, v, a) = (u'', v'', a'') then
 
     (* Message 9 *)
     new symk8:SymmetricKey;
@@ -308,13 +309,13 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, exp_v:exponent, skv
     (* Message 5 *)
     in(c, m_5:bitstring);
     let (symk4_enc:bitstring, m5_enc:bitstring) = m_5 in
-    let (=tag5, (i':bitstring, u':bitstring, uri':bitstring, a':bitstring)) =  dec(m5_enc, skdec(symk4_enc, symk_av_dec)) in
-    if (i', u', uri', a') = (i, u, uri, a) then
+    let (=tag5, (i':bitstring, v':bitstring, u':bitstring, uri':bitstring, a':bitstring)) =  dec(m5_enc, skdec(symk4_enc, symk_av_dec)) in
+    if (i', v', u', uri', a') = (i, v, u, uri, a) then
 
     (* Message 6, VPR *)
     new n_c:bitstring;
     let rule = (u, i, uri, a) in
-    let vpr_send_prev = (rule, u, n_c)  in
+    let vpr_send_prev = (v, rule, n_c)  in
     new symk5:SymmetricKey;
     let enc_symk5 = skenc(symk5,symk_av_enc) in
     let m_6 = (enc_symk5, enc((tag6, vpr_send_prev), symk5))  in
@@ -330,14 +331,14 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, exp_v:exponent, skv
 
 
     let (vp:bitstring, sign_vp:bitstring) = vp_signed in
-    let (n_c':bitstring, vc_signed':bitstring, uri'':bitstring, a'':bitstring) = vp in
+    let (u4:bitstring, v4:bitstring, n_c':bitstring, vc_signed':bitstring, uri'':bitstring, a'':bitstring) = vp in
     let (vc:bitstring, sign_vc:bitstring) = vc_signed' in
     let (iss'':bitstring, u'':bitstring) = vc in
 
     if check(vp, sign_vp, pku) then
     if check(vc, sign_vc, pki) then
     (* missing check on issuer*)
-    if (n_c', u'', uri'', a'') = (n_c, u, uri, a) then
+    if (n_c', u'', uri'', a'', u4, v4) = (n_c, u, uri, a, u, v) then
     new resource:bitstring;
     new symk9:SymmetricKey;
     let symk9_enc=skenc(symk9, symk_av_enc) in
@@ -367,7 +368,7 @@ let open_app(c:channel, a:bitstring, exp_a:exponent,  ska:SecretKey, u:bitstring
     app(true, c, a, exp_a, ska, u, pku, exp_u, v, pkv, exp_v, i, pki, uri)  |
     app(false, c, a, exp_a, ska, e,pk(sk_E), exp(g, exp_E), v, pkv, exp_v, i, pki, uri) |
     app(false, c, a, exp_a, ska, u, pku, exp_u, e,pk(sk_E), exp(g, exp_E), i, pki, euri) |
-    app(false, c, a, exp_a, ska, e,pk(sk_E), exp(g, exp_E), e,pk(sk_E), exp(g, exp_E), i, pki, euri)
+    app(false, c, a, exp_a, ska, e,pk(sk_E), exp(g, exp_E), e, pk(sk_E), exp(g, exp_E), i, pki, euri)
     .  (* euri is a URI for another server. If the verifier is the intended trusted Solid server then the uri is as expected *) 
 
 let open_verifier(c:channel, v:bitstring, exp_v:exponent,  skv:SecretKey, u:bitstring, pku:PublicKey, exp_u:G, a:bitstring, pka:PublicKey, exp_a:G, i:bitstring, pki:PublicKey,exp_i:G, uri:bitstring) =

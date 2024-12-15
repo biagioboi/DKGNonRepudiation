@@ -146,7 +146,7 @@ let user(talksOnlyToHonest:bool, c:channel, u:bitstring, exp_u:exponent, sku:Sec
     (* Message 7 *)
 
     in(c, m_7:bitstring);
-    let (=tag7, v':bitstring, n_r:bitstring, m_cinque:bitstring) = dec(m_7, symk_ua_dec)  in
+    let (=tag7, n_r:bitstring, v':bitstring,m_cinque:bitstring) = dec(m_7, symk_ua_dec)  in
     if (v = v') then
     let (vpr_rec:bitstring, sig_vpr_2:bitstring) = m_cinque in (* Here it is the message *)
     let (v'':bitstring, rule':bitstring, n_c:bitstring) = vpr_rec in

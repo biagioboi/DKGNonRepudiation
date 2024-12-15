@@ -135,7 +135,8 @@ let user(talksOnlyToHonest:bool, c:channel, u:bitstring, sku:SecretKey, a:bitstr
     (* Message 7 *)
     in(c, m_7:bitstring);
     let (=tag7, (a':bitstring, v':bitstring, n_r: bitstring, vpr_body:bitstring, vpr_sign:bitstring)) = dec(m_7, symk_ua_dec) in
-    if (a=a' && v=v') then
+    (* This check makes the attacker not possible to replicate the message because the app will include the identity of the attacker rather than the identity of the verifier*)
+    if v=v' then
     if check(vpr_body, vpr_sign, pka) then
 
     (* let (vpr_body:bitstring, vpr_body_signature:bitstring) = vpr_signed in *)
@@ -145,7 +146,7 @@ let user(talksOnlyToHonest:bool, c:channel, u:bitstring, sku:SecretKey, a:bitstr
     (* Message 8 *)
     (* if (check(vpr_body, vpr_body_signature, pkv)) then *)
     (*if (uri', a') = (uri, a) then*)
-    let vp = ((n_c, vc, V, uri, a), sig((n_c, vc, V, uri, a), sku)) in
+    let vp = ((u, n_c, vc, V, uri, a), sig((u, n_c, vc, V, uri, a), sku)) in
     let m'_8 = (tag8, u, n_r, vp) in
     let m_8 = enc(m'_8, symk_ua_enc) in
 
@@ -212,6 +213,7 @@ let app(talksOnlyToHonest:bool, c:channel, a:bitstring, ska:SecretKey, u:bitstri
 
     (* Message 7 *)
     new n_r:bitstring;
+    (* When we are reaching out the attacker, then v = e, and so the user will never accept this *)
     let m_7 = enc((tag7, (a, v, n_r, vpr_cont, sig(vpr_cont, ska))), symk_ua_enc) in
     event auth_AppSendsLastMessageToUser(m_1,m_2,m_3, m_4, m_5, m_6, m_7);
     out(c, m_7);
@@ -277,13 +279,13 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, skv:SecretKey, u:bi
     in(c, m_9:bitstring);
     let (=tag9,vp_signed:bitstring) = dec(m_9, symk_av_dec) in
     let (vp:bitstring, sign_vp:bitstring) = vp_signed in
-    let (n_c':bitstring, vc_signed':bitstring, V':bitstring, uri'':bitstring, a'':bitstring) = vp in
+    let (u4:bitstring, n_c':bitstring, vc_signed':bitstring, V':bitstring, uri'':bitstring, a'':bitstring) = vp in
     let (vc:bitstring, sign_vc:bitstring) = vc_signed' in
     let (u'':bitstring, iss':bitstring) = vc in
 
     if check(vp, sign_vp, pku) then
     (* missing check on issuer*)
-    if (n_c', u'', V', uri'', a'') = (n_c, u, V, uri, a) then
+    if (n_c', u'', V', uri'', a'', u4) = (n_c, u, V, uri, a, u) then
     new tkn_access:bitstring;
     let m_10 = enc((tag10, (tkn_access, sig(tkn_access,skv))),symk_av_enc)  in
     event auth_VerifierSendsLastMessageToApp(m_3,m_4,m_5,m_6, m_9, m_10);
