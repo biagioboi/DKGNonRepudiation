@@ -134,9 +134,9 @@ let user(talksOnlyToHonest:bool, c:channel, u:bitstring, sku:SecretKey, a:bitstr
 
     (* Message 7 *)
     in(c, m_7:bitstring);
-    let (=tag7, a':bitstring, v':bitstring, n_r: bitstring, vpr_body:bitstring) = dec(m_7, symk_ua_dec) in
-    (*if (a=a') then
-    if (v=v') then*)
+    let (=tag7, (a':bitstring, v':bitstring, n_r: bitstring, vpr_body:bitstring, vpr_sign:bitstring)) = dec(m_7, symk_ua_dec) in
+    if (a=a' && v=v') then
+    if check(vpr_body, vpr_sign, pka) then
 
     (* let (vpr_body:bitstring, vpr_body_signature:bitstring) = vpr_signed in *)
     let (n_c:bitstring, V:bitstring, vpr:bitstring) = vpr_body in
@@ -196,15 +196,15 @@ let app(talksOnlyToHonest:bool, c:channel, a:bitstring, ska:SecretKey, u:bitstri
 
     new n_b:bitstring;
     (* Message 5 *)
-    let m_5 = enc((tag5, n_b, u, a, uri), symk_av_enc) in
+    let m_5 = enc((tag5, u, a, uri,n_b), symk_av_enc) in
     out(c, m_5);
 
     (* Message 6 *)
     in(c, m_6:bitstring);
-    let (=tag6, v':bitstring, vpr_signed:bitstring) = dec(m_6, symk_av_dec) in
-    let (n_c:bitstring, V:bitstring, vpr:bitstring) = vpr_signed in
+    let (=tag6, v':bitstring, vpr_cont:bitstring, n_b':bitstring) = dec(m_6, symk_av_dec) in
+    let (n_c:bitstring, V:bitstring, vpr:bitstring) = vpr_cont in
     let (u':bitstring, uri':bitstring, a':bitstring) = vpr in
-    (* if u' = u && uri' = uri && a' = a && v' = v then   RH: check the rule before contacting the user *)
+    if n_b = n_b' && u' = u && uri' = uri && a' = a && v' = v then   (*RH: check the rule before contacting the user *)
     
 
 
@@ -212,17 +212,17 @@ let app(talksOnlyToHonest:bool, c:channel, a:bitstring, ska:SecretKey, u:bitstri
 
     (* Message 7 *)
     new n_r:bitstring;
-    let m_7 = enc((tag7, a, v, n_r, vpr_signed), symk_ua_enc) in
+    let m_7 = enc((tag7, (a, v, n_r, vpr_cont, sig(vpr_cont, ska))), symk_ua_enc) in
     event auth_AppSendsLastMessageToUser(m_1,m_2,m_3, m_4, m_5, m_6, m_7);
     out(c, m_7);
 
     (* Message 8 *)
     in(c, m_8:bitstring);
     let (=tag8, u'':bitstring, n_r':bitstring, vp_signed:bitstring) = dec(m_8, symk_ua_dec) in
-    (*if (u=u'') then
-    if (n_r'=n_r) then*)
+    if (u=u'') then
+    if (n_r'=n_r) then
     let (vp:bitstring, sign_on_vp:bitstring) = vp_signed in
-    (*if (check(vp, sign_on_vp, pku)) then*)
+    if (check(vp, sign_on_vp, pku)) then
 
     (* Message 9 *)
     let m_9 = enc((tag9,vp_signed),symk_av_enc) in
@@ -232,12 +232,12 @@ let app(talksOnlyToHonest:bool, c:channel, a:bitstring, ska:SecretKey, u:bitstri
     
     (* Message 10 *)
     in(c, m_10:bitstring);
-    let (=tag10, tkn_access:bitstring, sign_tkn:bitstring) = dec(m_10, symk_av_dec) in
-
-    out(ch(( tkn_access, sig(tkn_access,ska) )),access_token_fromApp);
+    let (=tag10, (tkn_access:bitstring, sign_tkn:bitstring)) = dec(m_10, symk_av_dec) in
 
     if (talksOnlyToHonest) then
-    event auth_AppCompletesProtocol(m_1,m_2, m_3,m_4,m_5,m_6,m_7, m_8, m_9,m_10);
+    event auth_AppCompletesProtocol(m_1,m_2, m_3,m_4,m_5,m_6,m_7, m_8, m_9,m_10)|
+    out(ch(tkn_access),access_token_fromApp);
+
     
     0.
 
@@ -258,11 +258,10 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, skv:SecretKey, u:bi
 
     let symk_av_enc = hash_fork((K, h, keyEncCtoA)) in
     let symk_av_dec = hash_fork((K, h, keyEncAtoC)) in
-    new n_b:bitstring;
     (* Message 5 *)
     in(c, m_5:bitstring);
-    let (=tag5, n_b':bitstring, u':bitstring, a':bitstring, uri':bitstring) = dec(m_5, symk_av_enc) in
-    (*if (n_b', u', uri', a') = (n_b, u, uri, a) then*)
+    let (=tag5, u':bitstring, a':bitstring, uri':bitstring, n_b:bitstring) = dec(m_5, symk_av_enc) in
+    if (u', uri', a') = (u, uri, a) then
 
     (* Message 6, VPR *)
     new n_c:bitstring;
@@ -270,7 +269,7 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, skv:SecretKey, u:bi
     let vpr = (u, uri, a) in
     (* let m'_6 = ((n_c, V, vpr), sig((n_c, V, vpr), skv)) in *)
     let m'_6 = (n_c, V, vpr) in 
-    let m_6 = enc((tag6, v, m'_6), symk_av_enc)  in
+    let m_6 = enc((tag6, v, m'_6, n_b), symk_av_enc)  in
     event verifierInConeOfUser(m_3,m_4,m_5,m_6);
     out(c, m_6);
 
@@ -282,11 +281,11 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, skv:SecretKey, u:bi
     let (vc:bitstring, sign_vc:bitstring) = vc_signed' in
     let (u'':bitstring, iss':bitstring) = vc in
 
-    (*if check(vp_signed, sign_vp, pku) then*)
+    if check(vp, sign_vp, pku) then
     (* missing check on issuer*)
-    (*if (n_c', u'', V', uri'', a'') = (n_c, u, V, uri, a) then*)
+    if (n_c', u'', V', uri'', a'') = (n_c, u, V, uri, a) then
     new tkn_access:bitstring;
-    let m_10 = enc((tag10, tkn_access, sig(tkn_access,skv)),symk_av_enc)  in
+    let m_10 = enc((tag10, (tkn_access, sig(tkn_access,skv))),symk_av_enc)  in
     event auth_VerifierSendsLastMessageToApp(m_3,m_4,m_5,m_6, m_9, m_10);
     out(c, m_10);
 
