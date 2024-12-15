@@ -175,7 +175,7 @@ let app(talksOnlyToHonest:bool, c:channel, a:bitstring, exp_a:exponent, ska:Secr
     in(c, m_1:bitstring);
     let (=KEXDHINIT, dhpublicU: G, sig_hash_dhPublicU:bitstring) = m_1 in
     let K0 = exp(dhpublicU, exp_a) in
-    let h = hash_fork((dhpublicU, exp_a, K0)) in
+    let h = hash_fork((dhpublicU, exp(g, exp_a), K0)) in
     if check_hash_k(h, sig_hash_dhPublicU, pku) then
     new dhsecretAU: exponent;
     let dhpublicAU = exp(g, dhsecretAU) in
@@ -261,12 +261,12 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, exp_v:exponent, skv
     in(c, m_3:bitstring);
     let (=KEXDHINITSERVER, dhpublicA: G, sig_hash_dhPublicA:bitstring) = m_3 in
     let K0 = exp(dhpublicA, exp_v) in
-    let h = hash_fork((dhpublicA, exp_v, K0)) in
+    let h = hash_fork(( exp(g, exp_v), dhpublicA, K0)) in
     if check_hash_k(h, sig_hash_dhPublicA, pka) then
     new dhsecretV: exponent;
     let dhpublicV = exp(g, dhsecretV) in
     let K = exp(dhpublicA, dhsecretV) in
-    let h = hash_fork((dhpublicA, dhpublicV, K)) in
+    let h = hash_fork(( dhpublicV, dhpublicA, K)) in
 
     let m_4:bitstring = (KEXDHREPLYSERVER, dhpublicV, sig_hash_k(h, skv)) in 
     out(c, m_4);
