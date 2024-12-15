@@ -114,13 +114,10 @@ event auth_VerifierSendsLastMessageToApp(bitstring,bitstring,bitstring,bitstring
 event auth_AppSendsLastMessageToVerifier(bitstring, bitstring, bitstring, bitstring,bitstring,bitstring,bitstring,bitstring,bitstring).
 event auth_AppCompletesProtocolWithUser(bitstring, bitstring,bitstring, bitstring, bitstring,bitstring,bitstring, bitstring).
 
-
+(* Definition for the attacker *)
 free sk_E:SecretKey.
 free exp_E:exponent.
-free sk_E2:SecretKey.
-free exp_E2:exponent.
 free e:bitstring.
-free e2:bitstring.
 
 (* --------------------------------------------------------------------------------------------------------- *)
 (* End Definitions *)
@@ -335,7 +332,7 @@ let open_user(c:channel, u:bitstring, exp_u:exponent, sku:SecretKey, a:bitstring
 let open_app(c:channel, c2:channel, a:bitstring, exp_a:exponent,  ska:SecretKey, u:bitstring, pku:PublicKey, exp_u:G, v:bitstring, pkv:PublicKey, exp_v:G, i:bitstring, pki:PublicKey, exp_i:G, uri:bitstring) =
     app(true, c, c2, a, exp_a, ska, u, pku, exp_u, v, pkv, exp_v, i, pki, uri) |
     app(false, c, c2, a, exp_a, ska, e,pk(sk_E), exp(g, exp_E), v, pkv, exp_v, i, pki, uri) |
-    app(false, c, c2, a, exp_a, ska, u, pku, exp_u, e2, pk(sk_E), exp(g, exp_E), i, pki, uri) |
+    app(false, c, c2, a, exp_a, ska, u, pku, exp_u, e, pk(sk_E), exp(g, exp_E), i, pki, uri) |
     app(false, c, c2, a, exp_a, ska, e,pk(sk_E), exp(g, exp_E), e, pk(sk_E), exp(g, exp_E), i, pki, uri)
     .  (* euri is a URI for another server. If the verifier is the intended trusted Solid server then the uri is as expected *) 
 
