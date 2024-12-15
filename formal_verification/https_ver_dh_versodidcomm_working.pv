@@ -149,8 +149,8 @@ let user(talksOnlyToHonest:bool, c:channel, u:bitstring, exp_u:exponent, sku:Sec
     let (u':bitstring, i':bitstring, uri':bitstring, a':bitstring) = rule' in
     (*  We trust the signature applied by the verifier because we trust the app, which already checked on this, 
         so we just check the signature applied by the app *)
-    (*if (check(vpr_rec, sig_vpr_2, pka)) then
-    if ((u', uri', a') = (u, uri, a)) then*)
+    if (check(vpr_rec, sig_vpr_2, pka)) then
+    if ((u', uri', a') = (u, uri, a)) then
     
     (* Message 8 *)
     (* if (check(vpr_body, vpr_body_signature, pkv)) then *)
@@ -209,17 +209,16 @@ let app(talksOnlyToHonest:bool, c:channel, a:bitstring, exp_a:exponent, ska:Secr
 
 
     (* Message 4 *)
-    let m_5 = (tag5, enc((i, u, uri, a), symk_av_enc)) in
+    let m_5 = enc((tag5, (i, u, uri, a)), symk_av_enc) in
     out(c,m_5);
 
 
     (* Receive VPR *)
     in(c, m_6:bitstring);
-    let (=tag6, vpr':bitstring) = m_6 in
-    let dec_vpr = dec(vpr', symk_av_dec) in (* Here it is the message *)
+    let (=tag6, dec_vpr:bitstring) = dec(m_6, symk_av_dec) in
     let (rule':bitstring, usr':bitstring, n_c':bitstring) = dec_vpr in
     let(u':bitstring, i':bitstring, uri':bitstring, a':bitstring) = rule' in
-    (*if ((u', i', uri', a') = (u, i, uri, a)) then  Who knows, maybe server is starting behaving maliciously *)
+    if ((u', i', uri', a') = (u, i, uri, a)) then (*Who knows, maybe server is starting behaving maliciously *)
 
 
     (* End contacting the Verifier for VPR generation *)
@@ -238,7 +237,7 @@ let app(talksOnlyToHonest:bool, c:channel, a:bitstring, exp_a:exponent, ska:Secr
     let (vp:bitstring, sign_on_vp:bitstring) = vp_signed in
     let (n_c'':bitstring, vc_signed':bitstring, uri'':bitstring, a'':bitstring) = vp in
     let vp_2_prev:bitstring = ((vp, sign_on_vp), sig((vp, sign_on_vp), ska)) in
-    (*if (check(vp, sign_on_vp, pku)) then*)
+    if (check(vp, sign_on_vp, pku)) then
 
     (* Message 9 *)
     let m_9 = enc((tag9,vp_2_prev),symk_av_enc) in
@@ -276,8 +275,7 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, exp_v:exponent, skv
 
     (* Message 5 *)
     in(c, m_5:bitstring);
-    let (tag5':bitstring, i':bitstring, u':bitstring, a':bitstring, uri':bitstring) = dec(m_5, symk_av_enc) in
-    if (tag5 = tag5') then
+    let (=tag5, (i':bitstring, u':bitstring,  uri':bitstring, a':bitstring)) = dec(m_5, symk_av_enc) in
     if (i', u', uri', a') = (i, u, uri, a) then
 
     (* Message 6, VPR *)
@@ -292,7 +290,7 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, exp_v:exponent, skv
     in(c, m_9:bitstring);
     let (=tag9, vp_signed_2:bitstring) = dec(m_9, symk_av_dec) in
     let (vp_signed:bitstring, vp_sign_2:bitstring) = vp_signed_2 in
-    (*if (check(vp_signed, vp_sign_2, pka)) then*)
+    if (check(vp_signed, vp_sign_2, pka)) then
 
 
     let (vp:bitstring, sign_vp:bitstring) = vp_signed in
@@ -300,9 +298,9 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, exp_v:exponent, skv
     let (vc:bitstring, sign_vc:bitstring) = vc_signed' in
     let (iss'':bitstring, u'':bitstring) = vc in
 
-    (*if check(vp, sign_vp, pku) then*)
-    (* missing check on issuer*)
-    (*if (n_c', u'', uri'', a'') = (n_c, u, uri, a) then*)
+    if check(vp, sign_vp, pku) then
+    if check(vc, sign_vc, pki) then
+    if (n_c', u'', uri'', a'') = (n_c, u, uri, a) then
     new resource:bitstring;
     let m_10 = enc((tag10, resource),symk_av_enc)  in
     event auth_VerifierSendsLastMessageToApp(m_3,m_4,m_5,m_6, m_9, m_10);
