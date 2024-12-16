@@ -138,10 +138,12 @@ let user(talksOnlyToHonest:bool, c:channel, u:bitstring, exp_u:exponent, sku:Sec
     let (=tag7, n_r:bitstring,  v':bitstring, vpr_signed:bitstring) = dec(m7_enc, skdec(symk6_enc, symk_ua_dec))  in
     if (v = v') then
     let (vpr_rec:bitstring, sig_vpr_2:bitstring) = vpr_signed in
+    (* Check if the signature applied by the App is genuine *)
+    if (check(vpr_rec, sig_vpr_2, pka)) then
+
     let (v'':bitstring, rule':bitstring, n_c:bitstring) = vpr_rec in
     let (u':bitstring, i':bitstring, uri':bitstring, a':bitstring) = rule' in
-    (* Check the signature over the VPR *)
-    if (check(vpr_rec, sig_vpr_2, pka)) then
+    (* Check that these are field we expect to sign  *)
     if ((u', uri', a', v'') = (u, uri, a, v)) then
     
     (* Message 8 User -> App *)
@@ -163,8 +165,8 @@ let user(talksOnlyToHonest:bool, c:channel, u:bitstring, exp_u:exponent, sku:Sec
 let app(talksOnlyToHonest:bool, c:channel,c2:channel, a:bitstring, exp_a:exponent, ska:SecretKey,  u:bitstring, pku:PublicKey, exp_u:G, v:bitstring, pkv:PublicKey, exp_v:G, i:bitstring, pki:PublicKey, uri:bitstring) =
 
    
-     (* Message 1 *)
-
+    (* Message 1 User -> App *)
+    (* Send the communication request *)
     in(c, m_1:bitstring);
     let (=KEXDHINIT, g_su_enc: bitstring, symk0_enc:bitstring, g_su_signed_enc:bitstring) = m_1 in
     let g_su = genadec(g_su_enc, ska) in
@@ -175,6 +177,7 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, a:bitstring, exp_a:exponen
     if gencheck(g_su, g_su_sign, pku) then
     
     (* Message 2 *)
+    (* Send the response *)
     new sa: exponent;
     let g_sa = exp(g, sa) in
     let K = exp(g_su, sa) in
@@ -188,9 +191,8 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, a:bitstring, exp_a:exponen
     let symk_ua_dec = hash_fork((K, h, keyEncCtoS)) in
 
 
-    (* Start contacting the Verifier for VPR generation *)
-    (* Message 3 *)
-
+    (* Message 3 App -> CSS *)
+    (* Send the communication request *)
     new sav: exponent;
     let g_sav = exp(g, sav) in
     let KC_temp = exp(exp_v, sav) in
@@ -200,6 +202,8 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, a:bitstring, exp_a:exponen
     let m_3:bitstring = (KEXDHINITSERVER, genaenc(g_sav, pku), skenc(symk_2, hc_temp), enc(diddoc_sav_signed, symk_2)) in
     out(c2, m_3);
 
+    (* Message 4 CSS -> App *)
+    (* Send the response *)
     in(c2, m_4:bitstring);
     let (=KEXDHREPLYSERVER, g_sc_enc: bitstring, symk3_enc: bitstring, g_sc_signed_enc:bitstring) = m_4 in
     let g_sc = genadec(g_sc_enc, ska) in
@@ -213,14 +217,15 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, a:bitstring, exp_a:exponen
     let symk_av_dec = hash_fork((KC, hc, keyEncCtoA)) in
 
 
-    (* Message 4 *)
+    (* Message 5 App -> CSS *)
+    (* Send (i, v, u, uri, a) to the CSS *)
     new symk4: SymmetricKey;
     let symk4_enc = skenc(symk4, symk_av_enc) in
     let m_5 = (symk4_enc, enc((tag5, (i, v, u, uri, a)), symk4)) in
     out(c2,m_5);
 
-
-    (* Receive VPR *)
+    (* Message 6 CSS -> App *)
+    (* Receive the VPR = (v, rule, n_v) from the CSS *)
     in(c2, m_6:bitstring);
     let (symk5_enc:bitstring, m6_enc:bitstring) = m_6 in
     let (=tag6, dec_vpr:bitstring) = dec(m6_enc, skdec(symk5_enc, symk_av_dec))  in
@@ -228,10 +233,8 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, a:bitstring, exp_a:exponen
     let(u':bitstring, i':bitstring, uri':bitstring, a':bitstring) = rule' in
     if ((v', u', i', uri', a') = (v, u, i, uri, a)) then  (*Who knows, maybe server is starting behaving maliciously *)
 
-
-    (* End contacting the Verifier for VPR generation *)
-
-    (* Message 7 *)
+    (* Message 7 App -> User *)
+    (* Send the VPR^2, which is the VPR signed with secret key of app + nonce *)
     new n_r:bitstring;
     let vpr_signed = (dec_vpr, sig(dec_vpr, ska)) in
     new symk6:SymmetricKey;
@@ -240,16 +243,17 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, a:bitstring, exp_a:exponen
     event auth_AppSendsLastMessageToUser(m_1,m_2,m_3, m_4, m_5, m_6, m_7);
     out(c, m_7);
 
-    (* Message 8 *)
+    (* Message 8 User -> App *)
     in(c, m_8:bitstring);
     let (symk7_enc:bitstring, m8_enc:bitstring) = m_8 in
     let (=tag8, n_r':bitstring, vp_signed:bitstring) = dec(m8_enc, skdec(symk7_enc, symk_ua_dec)) in
+    if n_r = n_r' then
     let (vp:bitstring, sign_on_vp:bitstring) = vp_signed in
     if (check(vp, sign_on_vp, pku)) then
-    if n_r = n_r' then
-    let vp_2_prev:bitstring = ((vp_signed), sig((vp_signed), ska)) in
+    let vp_2_prev:bitstring = (vp_signed, sig(vp_signed, ska)) in
 
-    (* Message 9 *)
+    (* Message 9 App -> CSS *)
+    (* Send the VP^2 to the CSS, which is the VP signed with secret key of app *)
     new symk8:SymmetricKey;
     let symk8_enc = skenc(symk8, symk_av_enc) in
     let m_9 = (symk8_enc, enc((tag9,vp_2_prev),symk8)) in
