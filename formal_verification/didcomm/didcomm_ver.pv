@@ -24,6 +24,7 @@ type ktag.
 const tag1, tag2, tag2_bis, tag3, tag4, tag5, tag6, tag7, tag8, tag9, tag10, tag11, tag12:tag [data].
 const KEXDHINIT, KEXDHREPLY, KEXDHINITSERVER, KEXDHREPLYSERVER: tag [data].
 const keyEncStoC, keyEncCtoS, keyEncAtoC, keyEncCtoA: ktag [data].
+const keyEncStoCTemp, keyEncCtoSTemp, keyEncAtoCTemp, keyEncCtoATemp: ktag [data].
 const symk0, symk1, symk2, symk3, symk4, symk5, symk6, symk7, symk8, symk9:ktag[data].
 
 (* START hash *)
@@ -99,6 +100,7 @@ event auth_AppCompletesProtocolWithUser(bitstring, bitstring,bitstring, bitstrin
 free sk_E:SecretKey.
 free exp_E:exponent.
 free e:bitstring.
+free euri:bitstring.
 
 let user(talksOnlyToHonest:bool, c:channel, u:bitstring, exp_u:exponent, sku:SecretKey, a:bitstring, pka:PublicKey, exp_a:G, v:bitstring, pkv:PublicKey, exp_v:G, vc:bitstring, uri:bitstring) =
     
@@ -106,7 +108,7 @@ let user(talksOnlyToHonest:bool, c:channel, u:bitstring, exp_u:exponent, sku:Sec
     new su: exponent;
     let g_su = exp(g, su) in
     let K0 = exp(exp_a, su) in
-    let h0 = hash_fork((g_su, exp_a, K0)) in
+    let h0 = hash_fork(((g_su, exp_a, K0),keyEncCtoSTemp)) in
     new symk_0:SymmetricKey;
     let diddoc_su_signed = (g_su, gensig(g_su,sku)) in
     let m_1:bitstring = (KEXDHINIT, genaenc(g_su, pka), enc((symk0, symk_0), h0), enc(diddoc_su_signed, symk_0)) in
@@ -118,7 +120,7 @@ let user(talksOnlyToHonest:bool, c:channel, u:bitstring, exp_u:exponent, sku:Sec
     let (=KEXDHREPLY, g_sa_enc: bitstring, symk_1_enc: bitstring, diddoc_sa_signed_enc:bitstring) = m_2 in
     let g_sa = genadec(g_sa_enc, sku) in
     let K = exp(g_sa, su) in
-    let h = hash_fork((g_su, g_sa, K)) in
+    let h = hash_fork(((g_su, g_sa, K), keyEncStoCTemp)) in
     let (=symk1, symk_1:SymmetricKey) = dec(symk_1_enc, h) in
     let (g_sa':G, g_sa_signed:bitstring) = dec(diddoc_sa_signed_enc, symk_1) in
     if gencheck(g_sa, g_sa_signed , pka) then
@@ -169,7 +171,7 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, a:bitstring, exp_a:exponen
     let (=KEXDHINIT, g_su_enc: bitstring, symk0_enc:bitstring, g_su_signed_enc:bitstring) = m_1 in
     let g_su = genadec(g_su_enc, ska) in
     let K_temp = exp(g_su, exp_a) in
-    let h_temp = hash_fork((g_su, exp(g, exp_a), K_temp)) in
+    let h_temp = hash_fork(((g_su, exp(g, exp_a), K_temp), keyEncCtoSTemp)) in
     let (=symk0, symk_0:SymmetricKey) = dec(symk0_enc, h_temp) in
     let (g_su':G, g_su_sign:bitstring) = dec(g_su_signed_enc, symk_0) in
     if gencheck(g_su, g_su_sign, pku) then
@@ -179,7 +181,7 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, a:bitstring, exp_a:exponen
     new sa: exponent;
     let g_sa = exp(g, sa) in
     let K = exp(g_su, sa) in
-    let h = hash_fork((g_su, g_sa, K)) in
+    let h = hash_fork(((g_su, g_sa, K), keyEncStoCTemp)) in
     new symk_1:SymmetricKey;
     let diddoc_sa_enc = (g_sa, gensig(g_sa, ska)) in
     let m_2:bitstring = (KEXDHREPLY, genaenc(g_sa, pkv), enc((symk1, symk_1), h), enc(diddoc_sa_enc, symk_1)) in 
@@ -194,7 +196,7 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, a:bitstring, exp_a:exponen
     new sav: exponent;
     let g_sav = exp(g, sav) in
     let KC_temp = exp(exp_v, sav) in
-    let hc_temp = hash_fork((exp_v, g_sav, KC_temp)) in
+    let hc_temp = hash_fork(((exp_v, g_sav, KC_temp), keyEncAtoCTemp)) in
     new symk_2:SymmetricKey;
     let diddoc_sav_signed = (g_sav, gensig(g_sav, ska)) in
     let m_3:bitstring = (KEXDHINITSERVER, genaenc(g_sav, pku), enc((symk2, symk_2), hc_temp), enc(diddoc_sav_signed, symk_2)) in
@@ -206,7 +208,7 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, a:bitstring, exp_a:exponen
     let (=KEXDHREPLYSERVER, g_sc_enc: bitstring, symk3_enc: bitstring, g_sc_signed_enc:bitstring) = m_4 in
     let g_sc = genadec(g_sc_enc, ska) in
     let KC = exp(g_sc, sav) in
-    let hc = hash_fork((g_sc, g_sav, KC)) in
+    let hc = hash_fork(((g_sc, g_sav, KC), keyEncCtoATemp)) in
     let (=symk3, symk_3:SymmetricKey) = dec(symk3_enc, hc) in
     let (g_sc':G, g_sc_sisn:bitstring) = dec(g_sc_signed_enc, symk_3) in
     if gencheck(g_sc, g_sc_sisn, pkv) then
@@ -261,7 +263,7 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, a:bitstring, exp_a:exponen
     out(c2, m_9);
 
     
-    (* Message 10 *)
+    (* Message 10 CSS -> App *)
     in(c2, m_10:bitstring);
     let (symk9_enc:bitstring, m10_enc:bitstring) = m_10 in
     let (=symk9, symk_9:SymmetricKey)= dec(symk9_enc, symk_av_dec) in
@@ -280,7 +282,7 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, exp_v:exponent, skv
     let (=KEXDHINITSERVER, g_sav_enc: bitstring, symk2_enc:bitstring, g_sav_enc_signed:bitstring) = m_3 in
     let g_sav = genadec(g_sav_enc, skv) in
     let K0 = exp(g_sav, exp_v) in
-    let h = hash_fork((exp(g, exp_v), g_sav, K0)) in
+    let h = hash_fork(((exp(g, exp_v), g_sav, K0), keyEncAtoCTemp)) in
     let (=symk2, symk_2:SymmetricKey) = dec(symk2_enc, h) in
     let (g_sav':G, sign_g_sav:bitstring) = dec(g_sav_enc_signed, symk_2) in
     if gencheck(g_sav, sign_g_sav, pka) then
@@ -289,7 +291,7 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, exp_v:exponent, skv
     new sc: exponent;
     let g_sc = exp(g, sc) in
     let K = exp(g_sav, sc) in
-    let h = hash_fork((g_sc, g_sav, K)) in
+    let h = hash_fork(((g_sc, g_sav, K), keyEncCtoATemp)) in
     new symk_k3:SymmetricKey;
     let diddoc_sc_signed = (g_sc, gensig(g_sc, skv)) in
     let m_4:bitstring = (KEXDHREPLYSERVER, genaenc(g_sc, pka), enc((symk3, symk_k3), h), enc(diddoc_sc_signed, symk_k3)) in 
@@ -349,6 +351,7 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, exp_v:exponent, skv
     let symk9_enc= enc((symk9, symk_9), symk_av_enc) in
     let m_10 = (symk9_enc, enc((tag10, resource),symk_9))  in
     event auth_VerifierSendsLastMessageToApp(m_3,m_4,m_5,m_6, m_9, m_10);
+    out(c, m_10);
 
     if talksOnlyToHonest then
         event auth_VerifierCompletesProtocol(m_3,m_4,m_5,m_6,m_9,m_10)|
@@ -359,34 +362,6 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, exp_v:exponent, skv
 (* End Agent Macros *)
 (* Start Open Network *)
 (* --------------------------------------------------------------------------------------------------------- *)
-
-let open_user(c:channel, u:bitstring, exp_u:exponent, sku:SecretKey, a:bitstring, pka:PublicKey, exp_a:G, v:bitstring, pkv:PublicKey, exp_v:G, vc:bitstring, uri:bitstring) =
-    in(c, euri:bitstring);
-    user(true, c, u, exp_u, sku, a, pka, exp_a, v, pkv, exp_v,vc, uri) |
-    user(false, c, u, exp_u, sku, e,pk(sk_E), exp(g, exp_E),v, pkv, exp_v, vc, uri) |
-    user(false, c, u, exp_u, sku, a, pka, exp_a, e,pk(sk_E), exp(g, exp_E), vc, euri) |
-    user(false, c, u, exp_u, sku, e,pk(sk_E), exp(g, exp_E),e,pk(sk_E), exp(g, exp_E), vc, euri).
-
-let open_app(c:channel, c2:channel, a:bitstring, exp_a:exponent,  ska:SecretKey, u:bitstring, pku:PublicKey, exp_u:G, v:bitstring, pkv:PublicKey, exp_v:G, i:bitstring, pki:PublicKey, exp_i:G, uri:bitstring) =
-
-    in(c, euri:bitstring);
-    app(true, c, c2, a, exp_a, ska, u, pku, exp_u, v, pkv, exp_v, i, pki, uri)  |
-    app(false, c,c2, a, exp_a, ska, e,pk(sk_E), exp(g, exp_E), v, pkv, exp_v, i, pki, uri) |
-    app(false, c, c2, a, exp_a, ska, u, pku, exp_u, e,pk(sk_E), exp(g, exp_E), i, pki, euri) |
-    app(false, c, c2, a, exp_a, ska, e,pk(sk_E), exp(g, exp_E), e, pk(sk_E), exp(g, exp_E), i, pki, euri)
-    .  (* euri is a URI for another server. If the verifier is the intended trusted Solid server then the uri is as expected *) 
-
-let open_verifier(c:channel, v:bitstring, exp_v:exponent,  skv:SecretKey, u:bitstring, pku:PublicKey, exp_u:G, a:bitstring, pka:PublicKey, exp_a:G, i:bitstring, pki:PublicKey,exp_i:G, uri:bitstring) =
-
-    verifier(true, c, v, exp_v, skv, u, pku, exp_u, a, pka, exp_a, i, pki,  uri) |
-    verifier(false, c, v, exp_v, skv, e,pk(sk_E), exp(g, exp_E), a, pka,exp_a,  i, pki, uri) |
-    verifier(false, c, v, exp_v, skv, u, pku, exp_u, e,pk(sk_E), exp(g, exp_E), i, pki,  uri) |
-    verifier(false, c, v, exp_v, skv, e,pk(sk_E), exp(g, exp_E), e,pk(sk_E), exp(g, exp_E), i, pki, uri) |
-    verifier(false, c, v, exp_v, skv, u, pku, exp_u, a, pka, exp_a, e,pk(sk_E),  uri) |
-    verifier(false, c, v, exp_v, skv, e,pk(sk_E), exp(g, exp_E), a, pka,exp_a, e,pk(sk_E), uri)  |
-    verifier(false, c, v, exp_v, skv, u, pku, exp_u,e,pk(sk_E), exp(g, exp_E), e,pk(sk_E),  uri) |
-    verifier(false, c, v, exp_v, skv, e,pk(sk_E), exp(g, exp_E), e,pk(sk_E), exp(g, exp_E), e,pk(sk_E), uri)
-    .
 
 (* --------------------------------------------------------------------------------------------------------- *)
 (* End Open Network *)
@@ -473,9 +448,22 @@ process (*use root process for setup *)
 
     (*let agents dance*)
     (
-        ! open_user(c, u, exp_u, sku, a, pk(ska), exp(g, exp_a), v, pk(skv), exp(g, exp_v),vc, uri_req)
-      | ! open_app(c, c2, a, exp_a, ska, u, pk(sku), exp(g, exp_u),v, pk(skv), exp(g, exp_v),i, pk(ski), exp(g, exp_i),uri_req)
-      | ! open_verifier(c2, v, exp_v, skv, u, pk(sku), exp(g, exp_u),a, pk(ska), exp(g, exp_a), i, pk(ski),exp(g, exp_i),uri_req)
+        !user(true, c, u, exp_u, sku, a, pk(ska), exp(g, exp_a), v, pk(skv), exp(g, exp_v),vc, uri_req) |
+        !user(false, c, u, exp_u, sku, e,pk(sk_E), exp(g, exp_E),v, pk(skv), exp(g, exp_v), vc, uri_req) |
+        !user(false, c, u, exp_u, sku, a, pk(ska), exp(g, exp_a),e, pk(sk_E), exp(g, exp_E), vc, euri) |
+        !user(false, c, u, exp_u, sku, e,pk(sk_E), exp(g, exp_E),e,pk(sk_E), exp(g, exp_E), vc, euri) |
+        !app(true, c, c2, a, exp_a, ska, u, pk(sku), exp(g, exp_u), v, pk(skv), exp(g, exp_v), i, pk(ski), uri_req)  |
+        !app(false, c,c2, a, exp_a, ska, e,pk(sk_E), exp(g, exp_E), v,  pk(skv), exp(g, exp_v), i, pk(ski), uri_req) |
+        !app(false, c, c2, a, exp_a, ska, u, pk(sku), exp(g, exp_u), e,pk(sk_E), exp(g, exp_E), i, pk(ski), euri) |
+        !app(false, c, c2, a, exp_a, ska, e,pk(sk_E), exp(g, exp_E), e, pk(sk_E), exp(g, exp_E), i, pk(ski), euri) |
+        !verifier(true, c, v, exp_v, skv, u, pk(sku), exp(g, exp_u), a, pk(ska), exp(g, exp_a), i, pk(ski),  uri_req) |
+        !verifier(false, c, v, exp_v, skv, e,pk(sk_E), exp(g, exp_E), a, pk(ska), exp(g, exp_a),  i, pk(ski), uri_req) |
+        !verifier(false, c, v, exp_v, skv, u, pk(sku), exp(g, exp_u), e,pk(sk_E), exp(g, exp_E), i, pk(ski),  uri_req) |
+        !verifier(false, c, v, exp_v, skv, e,pk(sk_E), exp(g, exp_E), e,pk(sk_E), exp(g, exp_E), i, pk(ski), uri_req) |
+        !verifier(false, c, v, exp_v, skv, u, pk(sku), exp(g, exp_u), a, pk(ska), exp(g, exp_a), e,pk(sk_E),  uri_req) |
+        !verifier(false, c, v, exp_v, skv, e,pk(sk_E), exp(g, exp_E), a, pk(ska), exp(g, exp_a), e,pk(sk_E), uri_req)  |
+        !verifier(false, c, v, exp_v, skv, u, pk(sku), exp(g, exp_u),e,pk(sk_E), exp(g, exp_E), e,pk(sk_E),  uri_req) |
+        !verifier(false, c, v, exp_v, skv, e,pk(sk_E), exp(g, exp_E), e,pk(sk_E), exp(g, exp_E), e,pk(sk_E), uri_req)
     )
 
 (* --------------------------------------------------------------------------------------------------------- *)
