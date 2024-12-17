@@ -31,6 +31,7 @@ const keyEncStoCTemp, keyEncCtoSTemp, keyEncAtoCTemp, keyEncCtoATemp: ktag [data
 const symk0, symk1, symk2, symk3, symk4, symk5, symk6, symk7, symk8, symk9:ktag[data].
 const dec_vpr_msg, dec_vpr_2_msg, vp_msg, vp_2_msg: tag[data].
 const sig_gsu, sig_gsa, sig_gsav, sig_gsac:  ktag [data].
+const gsu, gsa, gsav, gsac:  ktag [data].
 
 (* START hash *)
 fun hash_pk(PublicKey): bitstring.
@@ -43,8 +44,8 @@ fun enc(bitstring(*the message*), SymmetricKey):bitstring (*symmetric encrypt in
 reduc forall msg:bitstring,symk:SymmetricKey; dec(enc(msg,symk),symk)=msg (*symmetric decrypt*).
 
 (* START asymmetric encryption *)
-fun genaenc(G(*the message*), PublicKey):bitstring (*asymmetric encrypt input msg*).
-reduc forall msg:G,sk:SecretKey; genadec(genaenc(msg,pk(sk)),sk)=msg (*asymmetric decrypt*).
+fun aenc(bitstring(*the message*), PublicKey):bitstring (*asymmetric encrypt input msg*).
+reduc forall msg:bitstring,sk:SecretKey; adec(aenc(msg,pk(sk)),sk)=msg (*asymmetric decrypt*).
 (* END Asymmetric encryption *)
 
 (* START digital signature *)
@@ -117,14 +118,14 @@ let user(talksOnlyToHonest:bool, c:channel, u:bitstring, exp_u:exponent, sku:Sec
     let h0 = hash_fork(((g_su, exp_a, K0),keyEncCtoSTemp)) in
     new symk_0:SymmetricKey;
     let diddoc_su_signed = (g_su, sig(hash((sig_gsu, pka, g_su)),sku)) in
-    let m_1:bitstring = (KEXDHINIT, genaenc(g_su, pka), enc((symk0, symk_0), h0), enc(diddoc_su_signed, symk_0)) in
+    let m_1:bitstring = (KEXDHINIT, aenc((gsu, g_su), pka), enc((symk0, symk_0), h0), enc(diddoc_su_signed, symk_0)) in
     out(c, (msg1, m_1));
 
 
     (* Message 2 App -> User *)
     in(c, (=msg2, m_2:bitstring));
     let (=KEXDHREPLY, g_sa_enc: bitstring, symk_1_enc: bitstring, diddoc_sa_signed_enc:bitstring) = m_2 in
-    let g_sa = genadec(g_sa_enc, sku) in
+    let (=gsa, g_sa:G) = adec(g_sa_enc, sku) in
     let K = exp(g_sa, su) in
     let h = hash_fork(((g_su, g_sa, K), keyEncStoCTemp)) in
     let (=symk1, symk_1:SymmetricKey) = dec(symk_1_enc, h) in
@@ -175,7 +176,7 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, a:bitstring, exp_a:exponen
     (* Send the communication request *)
     in(c, (=msg1, m_1:bitstring));
     let (=KEXDHINIT, g_su_enc: bitstring, symk0_enc:bitstring, g_su_signed_enc:bitstring) = m_1 in
-    let g_su = genadec(g_su_enc, ska) in
+    let (=gsu, g_su:G) = adec(g_su_enc, ska) in
     let K_temp = exp(g_su, exp_a) in
     let h_temp = hash_fork(((g_su, exp(g, exp_a), K_temp), keyEncCtoSTemp)) in
     let (=symk0, symk_0:SymmetricKey) = dec(symk0_enc, h_temp) in
@@ -190,7 +191,7 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, a:bitstring, exp_a:exponen
     let h = hash_fork(((g_su, g_sa, K), keyEncStoCTemp)) in
     new symk_1:SymmetricKey;
     let diddoc_sa_enc = (g_sa, sig(hash((sig_gsa, pku, g_sa)), ska)) in
-    let m_2:bitstring = (KEXDHREPLY, genaenc(g_sa, pkv), enc((symk1, symk_1), h), enc(diddoc_sa_enc, symk_1)) in 
+    let m_2:bitstring = (KEXDHREPLY, aenc((gsa, g_sa), pkv), enc((symk1, symk_1), h), enc(diddoc_sa_enc, symk_1)) in 
     out(c, (msg2, m_2));
     
     let symk_ua_enc = hash_fork((K, h, keyEncStoC)) in
@@ -205,14 +206,14 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, a:bitstring, exp_a:exponen
     let hc_temp = hash_fork(((exp_v, g_sav, KC_temp), keyEncAtoCTemp)) in
     new symk_2:SymmetricKey;
     let diddoc_sav_signed = (g_sav, sig(hash((sig_gsav, pkv, g_sav)), ska)) in
-    let m_3:bitstring = (KEXDHINITSERVER, genaenc(g_sav, pku), enc((symk2, symk_2), hc_temp), enc(diddoc_sav_signed, symk_2)) in
+    let m_3:bitstring = (KEXDHINITSERVER, aenc((gsav, g_sav), pku), enc((symk2, symk_2), hc_temp), enc(diddoc_sav_signed, symk_2)) in
     out(c2, (msg3, m_3));
 
     (* Message 4 CSS -> App *)
     (* Send the response *)
     in(c2, (=msg4, m_4:bitstring));
     let (=KEXDHREPLYSERVER, g_sc_enc: bitstring, symk3_enc: bitstring, g_sc_signed_enc:bitstring) = m_4 in
-    let g_sc = genadec(g_sc_enc, ska) in
+    let(=gsac, g_sc:G) = adec(g_sc_enc, ska) in
     let KC = exp(g_sc, sav) in
     let hc = hash_fork(((g_sc, g_sav, KC), keyEncCtoATemp)) in
     let (=symk3, symk_3:SymmetricKey) = dec(symk3_enc, hc) in
@@ -286,7 +287,7 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, exp_v:exponent, skv
     (* Message 3 App -> CSS *)
     in(c, (=msg3, m_3:bitstring));
     let (=KEXDHINITSERVER, g_sav_enc: bitstring, symk2_enc:bitstring, g_sav_enc_signed:bitstring) = m_3 in
-    let g_sav = genadec(g_sav_enc, skv) in
+    let (=gsav, g_sav:G) = adec(g_sav_enc, skv) in
     let K0 = exp(g_sav, exp_v) in
     let h = hash_fork(((exp(g, exp_v), g_sav, K0), keyEncAtoCTemp)) in
     let (=symk2, symk_2:SymmetricKey) = dec(symk2_enc, h) in
@@ -300,7 +301,7 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, exp_v:exponent, skv
     let h = hash_fork(((g_sc, g_sav, K), keyEncCtoATemp)) in
     new symk_k3:SymmetricKey;
     let diddoc_sc_signed = (g_sc,sig(hash((sig_gsac, pka, g_sc)), skv)) in
-    let m_4:bitstring = (KEXDHREPLYSERVER, genaenc(g_sc, pka), enc((symk3, symk_k3), h), enc(diddoc_sc_signed, symk_k3)) in 
+    let m_4:bitstring = (KEXDHREPLYSERVER, aenc((gsac, g_sc), pka), enc((symk3, symk_k3), h), enc(diddoc_sc_signed, symk_k3)) in 
     out(c, (msg4, m_4));
 
     let symk_av_enc = hash_fork((K, h, keyEncCtoA)) in
