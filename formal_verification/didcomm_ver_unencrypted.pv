@@ -112,11 +112,11 @@ let user(talksOnlyToHonest:bool, c:channel, u:bitstring, exp_u:exponent, sku:Sec
     new symk_0:SymmetricKey;
     let diddoc_su_signed = (g_su, sig(hash((sig_gsu, pka, g_su)),sku)) in
     let m_1:bitstring = (KEXDHINIT, g_su, (*genaenc(g_su, pka),*) enc((symk0, symk_0), h0), enc(diddoc_su_signed, symk_0)) in
-    out(c, m_1);
+    out(c, (msg1, m_1));
 
 
     (* Message 2 App -> User *)
-    in(c, m_2:bitstring);
+    in(c, (=msg2, m_2:bitstring));
     let (=KEXDHREPLY, g_sa:G, (*g_sa_enc: bitstring, *)symk_1_enc: bitstring, diddoc_sa_signed_enc:bitstring) = m_2 in
     (*let g_sa = genadec(g_sa_enc, sku) in*)
     let K = exp(g_sa, su) in
