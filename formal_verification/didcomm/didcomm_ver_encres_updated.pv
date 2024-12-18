@@ -567,14 +567,14 @@ process (*use root process for setup *)
         !app(false, c,c2, a, exp_a, ska, e,pk(sk_E), exp(g, exp_E), v,  pk(skv), exp(g, exp_v), i, pk(ski), uri_req) |
         !app(false, c, c2, a, exp_a, ska, u, pk(sku), exp(g, exp_u), e,pk(sk_E), exp(g, exp_E), i, pk(ski), euri) |
         !app(false, c, c2, a, exp_a, ska, e,pk(sk_E), exp(g, exp_E), e, pk(sk_E), exp(g, exp_E), i, pk(ski), euri) |
-        !verifier(true, c, c3, v, exp_v, skv, u, pk(sku), exp(g, exp_u), a, pk(ska), exp(g, exp_a), i, pk(ski),  ttp, pk(sk_ttp), exp(g, exp_ttp), uri_req) |
-        !verifier(false, c, c3, v, exp_v, skv, e,pk(sk_E), exp(g, exp_E), a, pk(ska), exp(g, exp_a),  i, pk(ski), ttp, pk(sk_ttp), exp(g, exp_ttp), uri_req) |
-        !verifier(false, c, c3, v, exp_v, skv, u, pk(sku), exp(g, exp_u), e,pk(sk_E), exp(g, exp_E), i, pk(ski),  ttp, pk(sk_ttp), exp(g, exp_ttp), uri_req) |
-        !verifier(false, c, c3, v, exp_v, skv, e,pk(sk_E), exp(g, exp_E), e,pk(sk_E), exp(g, exp_E), i, pk(ski), ttp, pk(sk_ttp), exp(g, exp_ttp), uri_req) |
-        !verifier(false, c, c3,  v, exp_v, skv, u, pk(sku), exp(g, exp_u), a, pk(ska), exp(g, exp_a), e,pk(sk_E),  ttp, pk(sk_ttp), exp(g, exp_ttp), uri_req) |
-        !verifier(false, c, c3, v, exp_v, skv, e,pk(sk_E), exp(g, exp_E), a, pk(ska), exp(g, exp_a), e,pk(sk_E), ttp, pk(sk_ttp), exp(g, exp_ttp), uri_req)  |
-        !verifier(false, c, c3, v, exp_v, skv, u, pk(sku), exp(g, exp_u),e,pk(sk_E), exp(g, exp_E), e,pk(sk_E),  ttp, pk(sk_ttp), exp(g, exp_ttp), uri_req) |
-        !verifier(false, c, c3, v, exp_v, skv, e,pk(sk_E), exp(g, exp_E), e,pk(sk_E), exp(g, exp_E), e,pk(sk_E), ttp, pk(sk_ttp), exp(g, exp_ttp), uri_req) |
+        !verifier(true, c2, c3, v, exp_v, skv, u, pk(sku), exp(g, exp_u), a, pk(ska), exp(g, exp_a), i, pk(ski),  ttp, pk(sk_ttp), exp(g, exp_ttp), uri_req) |
+        !verifier(false, c2, c3, v, exp_v, skv, e,pk(sk_E), exp(g, exp_E), a, pk(ska), exp(g, exp_a),  i, pk(ski), ttp, pk(sk_ttp), exp(g, exp_ttp), uri_req) |
+        !verifier(false, c2, c3, v, exp_v, skv, u, pk(sku), exp(g, exp_u), e,pk(sk_E), exp(g, exp_E), i, pk(ski),  ttp, pk(sk_ttp), exp(g, exp_ttp), uri_req) |
+        !verifier(false, c2, c3, v, exp_v, skv, e,pk(sk_E), exp(g, exp_E), e,pk(sk_E), exp(g, exp_E), i, pk(ski), ttp, pk(sk_ttp), exp(g, exp_ttp), uri_req) |
+        !verifier(false, c2, c3,  v, exp_v, skv, u, pk(sku), exp(g, exp_u), a, pk(ska), exp(g, exp_a), e,pk(sk_E),  ttp, pk(sk_ttp), exp(g, exp_ttp), uri_req) |
+        !verifier(false, c2, c3, v, exp_v, skv, e,pk(sk_E), exp(g, exp_E), a, pk(ska), exp(g, exp_a), e,pk(sk_E), ttp, pk(sk_ttp), exp(g, exp_ttp), uri_req)  |
+        !verifier(false, c2, c3, v, exp_v, skv, u, pk(sku), exp(g, exp_u),e,pk(sk_E), exp(g, exp_E), e,pk(sk_E),  ttp, pk(sk_ttp), exp(g, exp_ttp), uri_req) |
+        !verifier(false, c2, c3, v, exp_v, skv, e,pk(sk_E), exp(g, exp_E), e,pk(sk_E), exp(g, exp_E), e,pk(sk_E), ttp, pk(sk_ttp), exp(g, exp_ttp), uri_req) |
         !trustedThirdParty(true, c3, ttp, exp_ttp, sk_ttp, a, pk(ska), exp(g, exp_a), v,pk(skv), exp(g, exp_v)) |
         !trustedThirdParty(false, c3, ttp, exp_ttp, sk_ttp, e,pk(sk_E), exp(g, exp_E),v, pk(skv), exp(g, exp_v)) |
         !trustedThirdParty(false, c3, ttp, exp_ttp, sk_ttp, a, pk(ska), exp(g, exp_a), e,pk(sk_E), exp(g, exp_E)) |
