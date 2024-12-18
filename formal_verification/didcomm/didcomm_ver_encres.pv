@@ -95,7 +95,7 @@ event auth_VerifierSendsLastMessageToApp(bitstring,bitstring,bitstring,bitstring
 (* App -> Verifier *)
 event auth_AppSendsLastMessageToVerifier(bitstring, bitstring, bitstring, bitstring, bitstring, bitstring,bitstring,bitstring,bitstring,bitstring,bitstring).
 event auth_AppCompletesProtocolWithUser(bitstring, bitstring,bitstring, bitstring, bitstring,bitstring,bitstring, bitstring).
-
+event auth_TTPSendsLastMessageToVerifier(bitstring, bitstring).
 event auth_TTPInConeOfApp(bitstring, bitstring).
 
 
@@ -271,8 +271,8 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, a:bitstring, exp_a:exponen
     (* Message 13 CSS -> App *)
     in(c2, (=msg13, m_13:bitstring));
     let (symk13_enc:bitstring, m13_enc:bitstring) = m_13 in
+    (* We cannot yet access the content of resource *)
     (* But I start extracting the messages *)
-    (* The hash of the encrypted resource is computed as k_15 + resource *)
     let (=symk13, symk_13:SymmetricKey) = dec(symk13_enc, symk_av_dec) in
     let (=tag13, m13_dec:bitstring) = dec(m13_enc, symk_13) in
     let (encrypted_k12':bitstring, encrypted_resource':bitstring, hash_encrypted_resource':bitstring) = m13_dec in
@@ -462,6 +462,7 @@ let trustedThirdParty(talksOnlyToHonest:bool, c:channel, ttp:bitstring, exp_ttp:
     let m_11:bitstring = (KEXDHREPLYTTP, aenc((gsttp, g_sttp), pkv), enc((symk11, symk_11), h0), enc(diddoc_sttp_signed, symk_11)) in
     
     event auth_TTPInConeOfApp(m_10, m_11);
+    event auth_TTPSendsLastMessageToVerifier(m_10, m_11);
     out(c, (msg11, m_11));
 
 
@@ -509,7 +510,7 @@ query  m_handshakeReq:bitstring, m_handshakeResp:bitstring, m_complete:bitstring
     &&
     inj-event(auth_UserSendsLastMessageToApp(m_1, m_2, m_7, m_8))
     &&
-    inj-event(auth_TTPInConeOfApp(m_10, m_11)).  
+    inj-event(auth_TTPSendsLastMessageToVerifier(m_10, m_11)).  
 
 (* --------------------------------------------------------------------------------------------------------- *)
 (* End Assumptions *)
