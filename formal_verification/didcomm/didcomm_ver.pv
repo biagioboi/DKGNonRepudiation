@@ -14,7 +14,10 @@ type PublicKey.
 fun pk(SecretKey):PublicKey.
 (* END keys *)
 type G.
+const g: G.
 type exponent.
+fun exp(G, exponent): G.
+equation forall x: exponent, y: exponent; exp(exp(g, x), y) = exp(exp(g, y), x).
 
 const uri_req:bitstring.
 const usr:bitstring.
@@ -23,7 +26,6 @@ type tag.
 type ktag.
 
 const tag1, tag2, tag2_bis, tag3, tag4, tag5, tag6, tag7, tag8, tag9, tag10, tag11, tag12:tag [data].
-
 const msg1, msg2, msg2_bis, msg3, msg4, msg5, msg6, msg7, msg8, msg9, msg10, msg11, msg12:tag [data].
 const KEXDHINIT, KEXDHREPLY, KEXDHINITSERVER, KEXDHREPLYSERVER: tag [data].
 const keyEncStoC, keyEncCtoS, keyEncAtoC, keyEncCtoA: ktag [data].
@@ -34,7 +36,6 @@ const sig_gsu, sig_gsa, sig_gsav, sig_gsac:  ktag [data].
 const gsu, gsa, gsav, gsac:  ktag [data].
 
 (* START hash *)
-fun hash_pk(PublicKey): bitstring.
 fun hash_fork(bitstring): SymmetricKey.
 fun hash(bitstring): bitstring.
 (* End hash *)
@@ -53,24 +54,12 @@ fun sig(bitstring(*the message*), SecretKey):bitstring(*the signature value*).
 reduc forall msg:bitstring,sk:SecretKey; check(msg,sig(msg,sk),pk(sk))=true (*check(msg,sigVal,pk)*).
 (* END digital signature *)
 
-(* START digital signature *)
-fun gensig(G(*the message*), SecretKey):bitstring(*the signature value*).
-reduc forall msg:G,sk:SecretKey; gencheck(msg,gensig(msg,sk),pk(sk))=true (*check(msg,sigVal,pk)*).
-(* END digital signature *)
-
 (*DEFS*)
 fun ch(bitstring): channel.
 fun chSymK(SymmetricKey): channel.
 
 
-
-const g: G.
-fun exp(G, exponent): G.
-equation forall x: exponent, y: exponent; exp(exp(g, x), y) = exp(exp(g, y), x).
-
-
 (* SECRECY *)
-
 free vp_fromProver: bitstring [private].
 free resource_fromVerifier: bitstring [private].
 free resource_fromApp: bitstring [private].

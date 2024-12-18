@@ -27,7 +27,7 @@ const tag1, tag2, tag2_bis, tag3, tag4, tag5, tag6, tag7, tag8, tag9, tag10, tag
 const msg1, msg2, msg2_bis, msg3, msg4, msg5, msg6, msg7, msg8, msg9, msg10, msg11, msg12, msg13, msg14, msg15, msg16, msg17:tag [data].
 const KEXDHINIT, KEXDHREPLY, KEXDHINITSERVER, KEXDHREPLYSERVER, KEXDHINITTTP, KEXDHREPLYTTP: tag [data].
 const keyEncStoC, keyEncCtoS, keyEncAtoC, keyEncCtoA: ktag [data].
-const keyEncStoCTemp, keyEncCtoSTemp, keyEncAtoCTemp, keyEncCtoATemp, keyEncTTPtoVer, keyEncVertoTTP: ktag [data].
+const keyEncStoCTemp, keyEncCtoSTemp, keyEncAtoCTemp, keyEncCtoATemp, keyEncTTPtoVer, keyEncVertoTTP, keyEncTTPtoVerTemp, keyEncVertoTTPTemp: ktag [data].
 const symkForResource, symk0, symk1, symk2, symk3, symk4, symk5, symk6, symk7, symk8, symk9, symk10, symk11, symk12, symk13, symk14, symk15, symk16:ktag[data].
 const dec_vpr_msg, dec_vpr_2_msg, vp_msg, vp_2_msg: tag[data].
 const sig_gsu, sig_gsa, sig_gsav, sig_gsac, sig_gsttp, sig_gsv:  ktag [data].
@@ -96,6 +96,7 @@ event auth_VerifierSendsLastMessageToApp(bitstring,bitstring,bitstring,bitstring
 event auth_AppSendsLastMessageToVerifier(bitstring, bitstring, bitstring, bitstring, bitstring, bitstring,bitstring,bitstring,bitstring,bitstring,bitstring).
 event auth_AppCompletesProtocolWithUser(bitstring, bitstring,bitstring, bitstring, bitstring,bitstring,bitstring, bitstring).
 
+event auth_TTPInConeOfApp(bitstring, bitstring).
 
 
 (* --------------------------------------------------------------------------------------------------------- *)
@@ -261,14 +262,13 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, a:bitstring, exp_a:exponen
     if (check(vp, sign_on_vp, pku)) then
     let vp_2_prev:bitstring = (vp_2_msg, vp_signed, sig(vp_signed, ska)) in
     
-    (* Message 9 *)
+    (* Message 9 App -> CSS *)
     new symk_8:SymmetricKey;
     let symk8_enc = enc((symk8, symk_8), symk_av_enc) in
     let m_9 = (symk8_enc, enc((tag9,vp_2_prev),symk_8)) in
-    out(c2, m_9);
+    out(c2, (msg9, m_9));
 
-    
-    (* Receive Message 10 *)
+    (* Message 13 CSS -> App *)
     in(c2, (=msg13, m_13:bitstring));
     let (symk13_enc:bitstring, m13_enc:bitstring) = m_13 in
     (* But I start extracting the messages *)
@@ -277,6 +277,7 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, a:bitstring, exp_a:exponen
     let (=tag13, m13_dec:bitstring) = dec(m13_enc, symk_13) in
     let (encrypted_k12':bitstring, encrypted_resource':bitstring, hash_encrypted_resource':bitstring) = m13_dec in
 
+    (* Message 14 App -> CSS *)
     (* Now we can sign this resource and retrnsmit it to the CSS *)
     new symk_k14: SymmetricKey;
     let encrypted_k14 = enc((symk14, symk_k14), symk_av_enc) in
@@ -285,6 +286,7 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, a:bitstring, exp_a:exponen
     event auth_AppSendsLastMessageToVerifier(m_1, m_2, m_3,m_4,m_5,m_6, m_7, m_8,m_9, m_13, m_14);
     out(c2,(msg14, m_14));
 
+    (* Message 15 CSS -> App *)
     in(c2, (=msg15, m_15:bitstring));
     let (symk15_enc:bitstring, m15_enc:bitstring) = m_15 in
     let (=symk15, symk_15:SymmetricKey) =  dec(symk15_enc, symk_av_dec) in
@@ -372,25 +374,25 @@ let verifier(talksOnlyToHonest:bool, c:channel, c2:channel, v:bitstring, exp_v:e
     if (u''', i''', uri''', a''') = (u, i, uri, a) then
     
     (* Begin communication with TTP *)
-    (* Receive Message 8 *)
-    in(c2, (=msg10, m_10:bitstring));
-    let (=KEXDHINITTTP, g_sttp_enc: bitstring, symk10_enc:bitstring, g_sttp_enc_signed:bitstring) = m_10 in
-    let (=gsttp, g_sttp:G) = adec(g_sttp_enc, skv) in
-    let K3_temp = exp(g_sttp, exp_v) in
-    let h3_temp = hash_fork((g_sttp, exp(g, exp_v), K3_temp, keyEncTTPtoVer)) in
-    let (=symk10, symk_10:SymmetricKey) = dec(symk10_enc, h3_temp) in
-    let (g_sttp':G, sign_g_sttp:bitstring) = dec(g_sttp_enc_signed, symk_10) in
-    if check(hash((sig_gsttp, pk(skv), g_sttp)), sign_g_sttp, pkttp) then
-
-
+    (* Message 10 CSS -> TTP *)
     new sv: exponent;
     let g_sv = exp(g, sv) in
-    let K3 = exp(g_sttp, sv) in
-    let h3 = hash_fork((g_sttp, g_sv, K3, keyEncVertoTTP)) in
-    new symk_k11:SymmetricKey;
+    let K3_temp = exp(exp_ttp, sv) in
+    let h3_temp = hash_fork((exp_ttp, g_sv, K3_temp, keyEncVertoTTPTemp)) in
+    new symk_10:SymmetricKey;
     let diddoc_sv_signed = (g_sv, sig(hash((sig_gsttp, pkttp, g_sv)), skv)) in
-    let m_11:bitstring = (KEXDHREPLYTTP, aenc((gsv, g_sv), pkttp), enc((symk11, symk_k11), h3), enc(diddoc_sv_signed, symk_k11)) in 
-    out(c2, (msg11, m_11));
+    let m_10:bitstring = (KEXDHINITTTP, aenc((gsv, g_sv), pkttp), enc((symk10, symk_10), h3_temp), enc(diddoc_sv_signed, symk_10)) in 
+    out(c2, (msg10, m_10));
+
+    (* Message 11 TTP -> CSS *)
+    in(c2, (=msg11, m_11:bitstring));
+    let (=KEXDHREPLYTTP, g_sttp_enc: bitstring, symk11_enc:bitstring, g_sttp_enc_signed:bitstring) = m_10 in
+    let (=gsttp, g_sttp:G) = adec(g_sttp_enc, skv) in
+    let K3 = exp(g_sttp, sv) in
+    let h3 = hash_fork((g_sttp, g_sv, K3, keyEncTTPtoVerTemp)) in
+    let (=symk11, symk_11:SymmetricKey) = dec(symk11_enc, h3_temp) in
+    let (g_sttp':G, sign_g_sttp:bitstring) = dec(g_sttp_enc_signed, symk_11) in
+    if check(hash((sig_gsttp, pk(skv), g_sttp)), sign_g_sttp, pkttp) then
 
     let symk_ttpv_enc = hash_fork((K3, h3, keyEncVertoTTP)) in
     let symk_ttpv_dec = hash_fork((K3, h3, keyEncTTPtoVer)) in
@@ -405,14 +407,16 @@ let verifier(talksOnlyToHonest:bool, c:channel, c2:channel, v:bitstring, exp_v:e
     new resource:bitstring;
     let m_12 = (encrypted_k12, enc(resource, symk_k12), hash(resource)) in
 
-    (* Message 10 - Now send it to the App *)
+    (* Message 13 - CSS -> App *)
+    (* Message containing the encrypted resource *)
     new symk_k13: SymmetricKey;
     let encrypted_k13 = enc((symk13, symk_k13), symk_av_enc) in
     let m_13 = (encrypted_k13, enc((tag13, m_12), symk_k13)) in
     out(c, (msg13, m_13));
 
 
-    (* Message 11 - Receive the resource signed from the App *)
+    (* Message 14 - App -> CSS *)
+    (* Message containing the signature applied over the resoruce *)
     in(c, (=msg14, m_14:bitstring));
     let (symk14_enc:bitstring, m14_enc:bitstring) = m_14 in
     let (=symk14, symk_14:SymmetricKey) = dec(symk14_enc, symk_av_dec) in
@@ -421,15 +425,14 @@ let verifier(talksOnlyToHonest:bool, c:channel, c2:channel, v:bitstring, exp_v:e
     if (check(m14_received, m14_signature, pka)) then (* The message has been authentically signed*)
 
 
-    (* Message 12 - Send the key for decrypting the resource to the App *)
+    (* Message 15 - CSS -> App *) 
+    (* Send the key for decrypting the resource to the App *)
     new symk_k15: SymmetricKey;
     let encrypted_k15 = enc((symk15, symk_k15), symk_av_enc) in
     let m_15 =(encrypted_k15, enc((tag16, symk_k12), symk_k15)) in
-    
 
     event auth_VerifierSendsLastMessageToApp(m_3,m_4,m_5,m_6, m_9, m_10, m_11, m_12, m_13, m_14, m_15);
-
-    out(c, (msg15, m_15)); (* Send the symmetric key used for encrypting the resource *)
+    out(c, (msg15, m_15));
 
     if talksOnlyToHonest then
         event auth_VerifierCompletesProtocol(m_3,m_4,m_5,m_6,m_9,m_10, m_11, m_12, m_13, m_14, m_15)|
@@ -439,30 +442,33 @@ let verifier(talksOnlyToHonest:bool, c:channel, c2:channel, v:bitstring, exp_v:e
 
 let trustedThirdParty(talksOnlyToHonest:bool, c:channel, ttp:bitstring, exp_ttp:exponent, sk_ttp:SecretKey,a:bitstring, pka:PublicKey, exp_a:G,  v:bitstring, pkv:PublicKey, exp_v:G) =
     
-    new sttp: exponent;
-    let g_sttp = exp(g, sttp) in
-    let K0 = exp(exp_v, sttp) in
-    let h0 = hash_fork((g_sttp, exp_v, K0, keyEncTTPtoVer)) in
-    new symk_10:SymmetricKey;
-    let diddoc_sttp_signed = (g_sttp, sig((sig_gsttp, pkv, g_sttp),sk_ttp)) in
-    let m_10:bitstring = (KEXDHINITTTP, aenc((gsttp, g_sttp), pkv), enc((symk10, symk_10), h0), enc(diddoc_sttp_signed, symk_10)) in
-    out(c, m_10);
-
-    in(c, m_11:bitstring);
-    let (=KEXDHREPLYTTP, g_sv_enc: bitstring, symk_11_enc: bitstring, diddoc_sv_signed_enc:bitstring) = m_11 in
+    (* Message 10 CSS -> TTP *)
+    in(c, (=msg10, m_10:bitstring));
+    let (=KEXDHINITTTP, g_sv_enc: bitstring, symk_11_enc: bitstring, diddoc_sv_signed_enc:bitstring) = m_10 in
     let (=gsv, g_sv:G) = adec(g_sv_enc, sk_ttp) in
-    let K = exp(g_sv, sttp) in
-    let h = hash_fork((g_sttp, g_sv, K)) in
-    let (=symk11, symk_11:SymmetricKey) = dec(symk_11_enc, h) in
-    let (g_sv':G, g_sv_signed:bitstring) = dec(diddoc_sv_signed_enc, symk_11) in
+    let K = exp(g_sv, exp_ttp) in
+    let h = hash_fork((exp(g, exp_ttp), g_sv, K, keyEncVertoTTPTemp)) in
+    let (=symk10, symk_10:SymmetricKey) = dec(symk_11_enc, h) in
+    let (g_sv':G, g_sv_signed:bitstring) = dec(diddoc_sv_signed_enc, symk_10) in
     if check((gsv, pk(sk_ttp), g_sv), g_sv_signed , pkv) then
 
-    let symk_ttpv_enc = hash_fork((K, h, keyEncTTPtoVer)) in
-    let symk_ttpv_dec = hash_fork((K, h, keyEncVertoTTP)) in
-
-    (*if talksOnlyToHonest then*)
-       
+    (* Message 11 TTP -> CSS *)
+    new sttp: exponent;
+    let g_sttp = exp(g, sttp) in
+    let K0 = exp(g_sv, sttp) in
+    let h0 = hash_fork((g_sttp, g_sv, K0, keyEncTTPtoVerTemp)) in
+    new symk_11:SymmetricKey;
+    let diddoc_sttp_signed = (g_sttp, sig((sig_gsttp, pkv, g_sttp),sk_ttp)) in
+    let m_11:bitstring = (KEXDHREPLYTTP, aenc((gsttp, g_sttp), pkv), enc((symk11, symk_11), h0), enc(diddoc_sttp_signed, symk_11)) in
     
+    event auth_TTPInConeOfApp(m_10, m_11);
+    out(c, (msg11, m_11));
+
+
+    let symk_ttpv_enc = hash_fork((K0, h0, keyEncTTPtoVer)) in
+    let symk_ttpv_dec = hash_fork((K0, h0, keyEncVertoTTP)) in
+
+
     0.
 (* --------------------------------------------------------------------------------------------------------- *)
 (* End Agent Macros *)
@@ -487,22 +493,23 @@ query  m_handshakeReq:bitstring, m_handshakeResp:bitstring, m_vpr:bitstring, m_v
     &&
     inj-event(verifierInConeOfUser(m_3, m_4, m_5, m_6)).
 
-
-
-
 query  m_handshakeReq:bitstring, m_handshakeResp:bitstring, m_uri:bitstring, m_rule:bitstring, m_accesstoken:bitstring,  m_1:bitstring, m_2:bitstring,m_2_bis:bitstring, m_7:bitstring, m_8:bitstring,m_9:bitstring, m_10:bitstring,  m_11:bitstring, m_12:bitstring,  m_13:bitstring, m_14:bitstring, m_15:bitstring;
     inj-event(auth_AppCompletesProtocol(m_1, m_2, m_handshakeReq, m_handshakeResp, m_uri, m_rule, m_7, m_8, m_9, m_13, m_14, m_15))
     ==>
     inj-event(auth_VerifierSendsLastMessageToApp(m_handshakeReq, m_handshakeResp, m_uri, m_rule,  m_9, m_10, m_11, m_12, m_13, m_14, m_15))
     &&
-    inj-event(auth_UserSendsLastMessageToApp(m_1, m_2, m_7, m_8)). 
+    inj-event(auth_UserSendsLastMessageToApp(m_1, m_2, m_7, m_8))
+    &&
+    inj-event(auth_TTPInConeOfApp(m_10, m_11)).  
 
 query  m_handshakeReq:bitstring, m_handshakeResp:bitstring, m_complete:bitstring, m_handshake_ver:bitstring, m_handshake_resp_ver:bitstring, m_uri:bitstring, m_rule:bitstring, m_vpr:bitstring, m_vp:bitstring, m_1:bitstring, m_2:bitstring, m_2_bis:bitstring, m_7:bitstring, m_8:bitstring,  m_9:bitstring, m_10:bitstring,  m_11:bitstring, m_12:bitstring, m_13:bitstring, m_14:bitstring, m_15:bitstring; 
     inj-event(auth_VerifierCompletesProtocol(m_handshake_ver, m_handshake_resp_ver, m_uri, m_vpr, m_9, m_10, m_11, m_12, m_13, m_14, m_15))
     ==>
     inj-event(auth_AppSendsLastMessageToVerifier(m_1, m_2, m_handshake_ver, m_handshake_resp_ver, m_uri, m_vpr, m_7, m_8, m_9, m_13, m_14))
     &&
-    inj-event(auth_UserSendsLastMessageToApp(m_1, m_2, m_7, m_8)).  
+    inj-event(auth_UserSendsLastMessageToApp(m_1, m_2, m_7, m_8))
+    &&
+    inj-event(auth_TTPInConeOfApp(m_10, m_11)).  
 
 (* --------------------------------------------------------------------------------------------------------- *)
 (* End Assumptions *)
