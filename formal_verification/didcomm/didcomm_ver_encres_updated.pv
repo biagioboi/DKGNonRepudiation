@@ -480,7 +480,6 @@ let trustedThirdParty(talksOnlyToHonest:bool, c:channel, ttp:bitstring, exp_ttp:
 query attacker(resource_fromApp). 
 query attacker(resource_fromVerifier).*)
 
-
 query  m_handshakeReq:bitstring, m_handshakeResp:bitstring, m_vpr:bitstring, m_vp:bitstring, m_3:bitstring, m_4:bitstring, m_5:bitstring, m_6:bitstring; 
     inj-event(auth_UserCompletesProtocol(m_handshakeReq, m_handshakeResp, m_vpr, m_vp))
     ==>
@@ -491,20 +490,19 @@ query  m_handshakeReq:bitstring, m_handshakeResp:bitstring, m_vpr:bitstring, m_v
 
 
 
-query  m_handshakeReq:bitstring, m_handshakeResp:bitstring, m_uri:bitstring, m_rule:bitstring, m_vp:bitstring, m_accesstoken:bitstring,  m_1:bitstring, m_2:bitstring,m_2_bis:bitstring, m_7:bitstring, m_8:bitstring;
-    inj-event(auth_AppCompletesProtocol(m_1, m_2, m_handshakeReq, m_handshakeResp, m_uri, m_rule, m_7, m_8, m_vp, m_accesstoken))
+query  m_handshakeReq:bitstring, m_handshakeResp:bitstring, m_uri:bitstring, m_rule:bitstring, m_accesstoken:bitstring,  m_1:bitstring, m_2:bitstring,m_2_bis:bitstring, m_7:bitstring, m_8:bitstring,m_9:bitstring, m_10:bitstring,  m_11:bitstring, m_12:bitstring,  m_13:bitstring, m_14:bitstring, m_15:bitstring;
+    inj-event(auth_AppCompletesProtocol(m_1, m_2, m_handshakeReq, m_handshakeResp, m_uri, m_rule, m_7, m_8, m_9, m_13, m_14, m_15))
     ==>
-    inj-event(auth_VerifierSendsLastMessageToApp(m_handshakeReq, m_handshakeResp, m_uri, m_rule, m_vp, m_accesstoken))
+    inj-event(auth_VerifierSendsLastMessageToApp(m_handshakeReq, m_handshakeResp, m_uri, m_rule,  m_9, m_10, m_11, m_12, m_13, m_14, m_15))
     &&
     inj-event(auth_UserSendsLastMessageToApp(m_1, m_2, m_7, m_8)). 
 
-query  m_handshakeReq:bitstring, m_handshakeResp:bitstring, m_complete:bitstring, m_handshake_ver:bitstring, m_handshake_resp_ver:bitstring, m_uri:bitstring, m_rule:bitstring, m_vpr:bitstring, m_vp:bitstring, m_accesstoken:bitstring, m_1:bitstring, m_2:bitstring, m_2_bis:bitstring, m_7:bitstring, m_8:bitstring; 
-    inj-event(auth_VerifierCompletesProtocol(m_handshake_ver, m_handshake_resp_ver, m_uri, m_vpr, m_vp, m_accesstoken))
+query  m_handshakeReq:bitstring, m_handshakeResp:bitstring, m_complete:bitstring, m_handshake_ver:bitstring, m_handshake_resp_ver:bitstring, m_uri:bitstring, m_rule:bitstring, m_vpr:bitstring, m_vp:bitstring, m_1:bitstring, m_2:bitstring, m_2_bis:bitstring, m_7:bitstring, m_8:bitstring,  m_9:bitstring, m_10:bitstring,  m_11:bitstring, m_12:bitstring, m_13:bitstring, m_14:bitstring, m_15:bitstring; 
+    inj-event(auth_VerifierCompletesProtocol(m_handshake_ver, m_handshake_resp_ver, m_uri, m_vpr, m_9, m_10, m_11, m_12, m_13, m_14, m_15))
     ==>
-    inj-event(auth_AppSendsLastMessageToVerifier(m_1, m_2, m_handshake_ver, m_handshake_resp_ver, m_uri, m_vpr, m_7, m_8, m_vp))
+    inj-event(auth_AppSendsLastMessageToVerifier(m_1, m_2, m_handshake_ver, m_handshake_resp_ver, m_uri, m_vpr, m_7, m_8, m_9, m_13, m_14))
     &&
-    inj-event(auth_UserSendsLastMessageToApp(m_1, m_2, m_7, m_8)). 
-
+    inj-event(auth_UserSendsLastMessageToApp(m_1, m_2, m_7, m_8)).  
 
 (* --------------------------------------------------------------------------------------------------------- *)
 (* End Assumptions *)
