@@ -87,11 +87,12 @@ export class EnvelopeService {
     encryptedMessage: EncryptedMessage
   ): Promise<DecryptedMessageContext> {
     const decryptedMessage = await agentContext.wallet.unpack(encryptedMessage)
-    const { recipientKey, senderKey, plaintextMessage } = decryptedMessage
+    const { recipientKey, senderKey, plaintextMessage, payloadKey } = decryptedMessage
     return {
       recipientKey: recipientKey ? Key.fromPublicKeyBase58(recipientKey, KeyType.Ed25519) : undefined,
       senderKey: senderKey ? Key.fromPublicKeyBase58(senderKey, KeyType.Ed25519) : undefined,
       plaintextMessage,
+
     }
   }
 }
@@ -99,5 +100,8 @@ export class EnvelopeService {
 export interface DecryptedMessageContext {
   plaintextMessage: PlaintextMessage
   senderKey?: Key
-  recipientKey?: Key
+  recipientKey?: Key,
+  payloadKey?:any
 }
+
+

@@ -173,6 +173,7 @@ export function didcommV1Unpack(messagePackage: EncryptedMessage, recipientKey: 
       plaintextMessage: JsonEncoder.fromBuffer(message),
       senderKey,
       recipientKey: TypedArrayEncoder.toBase58(recipientKey.publicBytes),
+      payloadKey
     }
   } finally {
     cek?.handle.free()
