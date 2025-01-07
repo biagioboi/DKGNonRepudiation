@@ -84,7 +84,7 @@ const initializeIssuerAgent = async (ledgerUrl, endPoint) => {
     await agent.initialize()
 
 
-    let did = 'did:web:raw.githubusercontent.com:biagioboi:demo-ttp:main:config'
+    let did = 'did:web:raw.githubusercontent.com:biagioboi:DKGNonRepudiation:main:demo-ttp:config'
     try {
         // Try to create the key for the wallet, if it already exists then jump these instructions
         const ed25519Key = await agent.wallet.createKey({
@@ -152,9 +152,12 @@ const PORT = 8082;
 startEverything().then(result => {
     /* Empty */
 })
+const cors = require('cors');
+
+app.use(cors());
 app.use(express.static('public'))
 
-app.use(bodyParser.json());
+app.use(express.json());
 app.use(bodyParser.urlencoded({extended: false}));
 app.get('/', (req, res) => {
     res.status(200);
@@ -182,6 +185,7 @@ app.get('/generateInvitation', async (req, res) => {
 
 app.post('/checkResource', async (req, res) => {
     res.status(200);
+    console.log(req)
     let encMessage = req.body.encryptedMessage;
     if (!encMessage) {
         res.json({error: "Unable to process the request."})
@@ -191,7 +195,9 @@ app.post('/checkResource', async (req, res) => {
 
     let env_service = new EnvelopeService(new ConsoleLogger());
     let dec_message = await env_service.unpackMessage(agent.context, encMessage);
-    res.json(dec_message)
+    const symKeyForDecrypt = dec_message.payloadKey;
+    /* It is possible to unpack whatever we want, at this point it is better to obtain the key for the decrypt rather than decrypt the message */
+    res.json({symKeyForDecrypt: symKeyForDecrypt})
 
 })
 
