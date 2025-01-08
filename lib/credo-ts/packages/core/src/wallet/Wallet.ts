@@ -88,5 +88,5 @@ export interface UnpackedMessageContext {
   plaintextMessage: PlaintextMessage
   senderKey?: string
   recipientKey?: string,
-  payloadKey?:string,
+  payloadKey?:any,
 }
