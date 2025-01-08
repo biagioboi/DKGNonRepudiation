@@ -57,6 +57,7 @@ export interface Wallet extends Disposable {
   pack(payload: Record<string, unknown>, recipientKeys: string[], senderVerkey?: string): Promise<EncryptedMessage>
   packWithReturn(payload: Record<string, unknown>, recipientKeys: string[], senderVerkey?: string): Promise<any>
   unpack(encryptedMessage: EncryptedMessage): Promise<UnpackedMessageContext>
+  unpackWithReturn(encryptedMessage: EncryptedMessage): Promise<UnpackedMessageContext>
   generateNonce(): Promise<string>
   generateWalletKey(): Promise<string>
 

@@ -36,7 +36,7 @@ import {
   keyTypesSupportedByAskar,
 } from '../utils'
 
-import { didcommV1Pack, didcommV1Unpack } from './didcommV1'
+import {didcommV1Pack, didcommV1Unpack, didcommV1UnpackWReturn} from './didcommV1'
 
 const isError = (error: unknown): error is Error => error instanceof Error
 
@@ -447,8 +447,43 @@ export abstract class AskarBaseWallet implements Wallet {
     if (!returnValue) {
       throw new WalletError('No corresponding recipient key found')
     }
+    // @ts-ignore
+    return returnValue;
 
-    return returnValue
+  }
+
+
+  /**
+   * Unpacks a JWE Envelope coded using DIDComm V1 algorithm
+   *
+   * @param messagePackage JWE Envelope
+   * @returns UnpackedMessageContext with plain text message, sender key and recipient key
+   */
+  public async unpackWithReturn(messagePackage: EncryptedMessage): Promise<UnpackedMessageContext> {
+    const protectedJson = JsonEncoder.fromBase64(messagePackage.protected)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const recipientKids: string[] = protectedJson.recipients.map((r: any) => r.header.kid)
+
+    // TODO: how long should sessions last? Just for the duration of the unpack? Or should each item in the recipientKids get a separate session?
+    const returnValue = await this.withSession(async (session) => {
+      for (const recipientKid of recipientKids) {
+        const recipientKeyEntry = await session.fetchKey({ name: recipientKid })
+        try {
+          if (recipientKeyEntry) {
+            return didcommV1UnpackWReturn(messagePackage, recipientKeyEntry.key)
+          }
+        } finally {
+          recipientKeyEntry?.key.handle.free()
+        }
+      }
+    })
+
+    if (!returnValue) {
+      throw new WalletError('No corresponding recipient key found')
+    }
+
+    // @ts-ignore
+    return returnValue;
   }
 
   public async generateNonce(): Promise<string> {

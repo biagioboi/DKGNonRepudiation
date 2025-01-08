@@ -179,3 +179,84 @@ export function didcommV1Unpack(messagePackage: EncryptedMessage, recipientKey: 
     cek?.handle.free()
   }
 }
+
+/* This is a simplified version of didcommV1Unpack where we just decrypt the header to obtain the symmetric key */
+/* This is needed by the TTP to obtain the symmetric key */
+export function didcommV1UnpackWReturn(messagePackage: EncryptedMessage, recipientKey: AskarKey) {
+  const protectedJson = JsonEncoder.fromBase64(messagePackage.protected)
+
+  const alg = protectedJson.alg
+  if (!['Anoncrypt', 'Authcrypt'].includes(alg)) {
+    throw new WalletError(`Unsupported pack algorithm: ${alg}`)
+  }
+
+  const recipient = protectedJson.recipients.find(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (r: any) => r.header.kid === TypedArrayEncoder.toBase58(recipientKey.publicBytes)
+  )
+
+  if (!recipient) {
+    throw new WalletError('No corresponding recipient key found')
+  }
+
+  const sender = recipient?.header.sender ? TypedArrayEncoder.fromBase64(recipient.header.sender) : undefined
+  const iv = recipient?.header.iv ? TypedArrayEncoder.fromBase64(recipient.header.iv) : undefined
+  const encrypted_key = TypedArrayEncoder.fromBase64(recipient.encrypted_key)
+
+  if (sender && !iv) {
+    throw new WalletError('Missing IV')
+  } else if (!sender && iv) {
+    throw new WalletError('Unexpected IV')
+  }
+
+  let payloadKey, senderKey
+
+  let sender_x: AskarKey | undefined
+  let recip_x: AskarKey | undefined
+
+  try {
+    recip_x = recipientKey.convertkey({ algorithm: KeyAlgs.X25519 })
+
+    if (sender && iv) {
+      senderKey = TypedArrayEncoder.toUtf8String(
+          CryptoBox.sealOpen({
+            recipientKey: recip_x,
+            ciphertext: sender,
+          })
+      )
+      sender_x = AskarKey.fromPublicBytes({
+        algorithm: KeyAlgs.Ed25519,
+        publicKey: TypedArrayEncoder.fromBase58(senderKey),
+      }).convertkey({ algorithm: KeyAlgs.X25519 })
+
+      payloadKey = CryptoBox.open({
+        recipientKey: recip_x,
+        senderKey: sender_x,
+        message: encrypted_key,
+        nonce: iv,
+      })
+    } else {
+      payloadKey = CryptoBox.sealOpen({ ciphertext: encrypted_key, recipientKey: recip_x })
+    }
+  } finally {
+    sender_x?.handle.free()
+    recip_x?.handle.free()
+  }
+
+  if (!senderKey && alg === 'Authcrypt') {
+    throw new WalletError('Sender public key not provided for Authcrypt')
+  }
+
+  let cek: AskarKey | undefined
+  try {
+    cek = AskarKey.fromSecretBytes({ algorithm: KeyAlgs.Chacha20C20P, secretKey: payloadKey })
+    return {
+      plaintextMessage: "",
+      senderKey,
+      recipientKey: TypedArrayEncoder.toBase58(recipientKey.publicBytes),
+      payloadKey
+    }
+  } finally {
+    cek?.handle.free()
+  }
+}
