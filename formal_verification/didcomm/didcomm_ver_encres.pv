@@ -598,6 +598,7 @@ query  m_handshakeReq:bitstring, m_handshakeResp:bitstring, m_complete:bitstring
 free c:channel.
 free c2:channel.
 free c3:channel.
+
 process (*use root process for setup *)
 
     (* create identities *)
