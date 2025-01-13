@@ -84,14 +84,14 @@ free resource_fromTTP:bitstring[private].
 
 (* AUTHENTICATION *)
 
-event auth_AppCompletesProtocol(bitstring,bitstring,bitstring,bitstring,bitstring,bitstring, bitstring,bitstring, bitstring, bitstring, bitstring, bitstring,bitstring).
+event auth_AppCompletesProtocol(bitstring, bitstring,bitstring,bitstring,bitstring,bitstring,bitstring, bitstring,bitstring, bitstring, bitstring, bitstring, bitstring,bitstring).
 event auth_UserCompletesProtocol(bitstring,bitstring,bitstring, bitstring, bitstring).
 event auth_VerifierCompletesProtocol(bitstring, bitstring,bitstring,bitstring,bitstring, bitstring,bitstring,bitstring,bitstring,bitstring, bitstring,bitstring).
-event auth_AppCompletesProtocolFull(bitstring,bitstring,bitstring,bitstring,bitstring, bitstring,bitstring, bitstring, bitstring, bitstring, bitstring,bitstring, bitstring,bitstring, bitstring,bitstring).
-event auth_VerifierCompletesProtocolFull(bitstring,bitstring,bitstring,bitstring, bitstring,bitstring,bitstring,bitstring,bitstring, bitstring,bitstring, bitstring, bitstring).
+event auth_AppCompletesProtocolFull(bitstring, bitstring,bitstring,bitstring,bitstring,bitstring, bitstring,bitstring, bitstring, bitstring, bitstring, bitstring,bitstring, bitstring,bitstring, bitstring,bitstring).
+event auth_VerifierCompletesProtocolFull(bitstring,bitstring,bitstring, bitstring,bitstring,bitstring,bitstring,bitstring, bitstring,bitstring, bitstring, bitstring).
 
 (* App -> User *)
-event auth_AppSendsLastMessageToUser(bitstring,bitstring,bitstring, bitstring, bitstring, bitstring, bitstring).
+event auth_AppSendsLastMessageToUser(bitstring, bitstring, bitstring,bitstring,bitstring, bitstring, bitstring, bitstring, bitstring).
 event verifierInConeOfUser(bitstring, bitstring,bitstring,bitstring,bitstring).
 
 (* User -> App *)
@@ -282,7 +282,7 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, a:bitstring, exp_a:exponen
     let symk8_enc = enc((symk8, symk_8), symk_ua_enc) in
     let m_5 = (symk8_enc, enc((tag5, n_r, v, vpr_signed), symk_8)) in
 
-    event auth_AppSendsLastMessageToUser(m_1,m_2,m_3, h_1, h_2, h_3, m_5);
+    event auth_AppSendsLastMessageToUser(m_1,m_2,m_3, m_4, m_vpr, h_1, h_2, h_3, m_5);
     out(c, (msg5, m_5));
 
     (* Message 6 User -> App *)
@@ -329,7 +329,7 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, a:bitstring, exp_a:exponen
 
     if (hash(resource') = hash_resource' && talksOnlyToHonest) then
         (* Everything ok, not go to the TTP *)
-        event auth_AppCompletesProtocol(m_1, m_2, m_3, m_4, h_1, h_2, h_3, m_5,m_6, m_vp_2, m_10, m_11, k_15)|
+        event auth_AppCompletesProtocol(m_1, m_2, m_3, m_4, m_vpr, h_1, h_2, h_3, m_5,m_6, m_vp_2, m_10, m_11, k_15)|
         out(ch(resource'), resource_fromApp)
     else
         
@@ -359,7 +359,7 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, a:bitstring, exp_a:exponen
         let resource'' = dec(encrypted_resource', symkForDecrypt) in
         if (hash(resource'') = hash_resource' && talksOnlyToHonest) then
         event auth_AppInConeOfVerifier(m_16, m_17, m_18, m_19);
-        event auth_AppCompletesProtocolFull(m_1, m_2, m_3, m_4, h_1, h_2, h_3, m_5,m_6, m_vp_2, m_10, m_11, m_16, m_17, m_18, m_19);
+        event auth_AppCompletesProtocolFull(m_1, m_2, m_3, m_4, m_vpr, h_1, h_2, h_3, m_5,m_6, m_vp_2, m_10, m_11, m_16, m_17, m_18, m_19);
         out(ch(resource''), resource_fromTTP);
     0.
 
@@ -516,7 +516,7 @@ let verifier(talksOnlyToHonest:bool, c:channel, c2:channel, v:bitstring, exp_v:e
 
     if talksOnlyToHonest then
         event auth_VerifierCompletesProtocol(m_1, m_2, m_3,m_4, m_vpr,m_vp_2, m_7, m_8, m_9, m_10, m_11, k_15)|
-        event auth_VerifierCompletesProtocolFull(m_1, m_2, m_3,m_4, m_vpr,m_vp_2, m_7, m_8, m_9, m_10, m_11, k_15, m_12)|
+        event auth_VerifierCompletesProtocolFull(m_1, m_2, m_3,m_4, m_vpr,m_vp_2, m_7, m_8, m_9, m_10, m_11, m_12)|
         out(ch(resource), resource_fromVerifier);
     
     0.
@@ -612,35 +612,35 @@ query attacker(resource_fromApp).
 query attacker(resource_fromVerifier).
 query attacker(resource_fromTTP).
 
-query m_1:bistring, m_2:bitstring, m_3:bitstring, m_4:bitstring, h_1:bitstring, h_2:bitstring, h_3:bitstring, m_vpr:bitstring, m_5:bitstring, m_6:bitstring; 
+query m_1:bitstring, m_2:bitstring, m_3:bitstring, m_4:bitstring, h_1:bitstring, h_2:bitstring, h_3:bitstring, m_vpr:bitstring, m_5:bitstring, m_6:bitstring; 
     inj-event(auth_UserCompletesProtocol(h_1, h_2, h_3, m_5, m_6))
     ==>
-    inj-event(auth_AppSendsLastMessageToUser(m_1, m_2, m_3, m_4, m_vpr, h_1, h_2, h_3, m_5, m_6))
+    inj-event(auth_AppSendsLastMessageToUser(m_1, m_2, m_3, m_4, m_vpr, h_1, h_2, h_3, m_5))
     &&
     inj-event(verifierInConeOfUser(m_1, m_2, m_3, m_4, m_vpr)).
     
 (* If the TTP reveals the message at the end, then the TTP must receive a message from the App (third message)  *)
 (* Without asking the key to the TTP *)
-query m_1:bistring, m_2:bitstring, m_3:bitstring, m_4:bitstring, h_1:bitstring, h_2:bitstring, h_3:bitstring, m_vpr:bitstring, m_5:bitstring, m_6:bitstring, m_vp:bitstring, m_7:bitstring, m_8:bitstring, m_9:bitstring, m_10:bitstring, m_11:bitstring, k_15:bitstring; 
-   inj-event(auth_AppCompletesProtocol(m_1, m_2, m_3, m_4, m_vpr, h_1, h_2, h_3, m_5, m_6, m_vp, m_10, m_11, k_15))
+query m_1:bitstring, m_2:bitstring, m_3:bitstring, m_4:bitstring, h_1:bitstring, h_2:bitstring, h_3:bitstring, m_vpr:bitstring, m_5:bitstring, m_6:bitstring, m_vp_2:bitstring, m_7:bitstring, m_8:bitstring, m_9:bitstring, m_10:bitstring, m_11:bitstring, k_15:bitstring; 
+   inj-event(auth_AppCompletesProtocol(m_1, m_2, m_3, m_4, m_vpr, h_1, h_2, h_3, m_5, m_6, m_vp_2, m_10, m_11, k_15))
     ==>
-    inj-event(auth_VerifierSendsLastMessageToApp(m_1, m_2, m_3, m_4, m_vpr, m_7, m_8, m_9, m_10, m_11, k_15))
+    inj-event(auth_VerifierSendsLastMessageToApp(m_1, m_2, m_3, m_4, m_vpr, m_vp_2, m_7, m_8, m_9, m_10, m_11, k_15))
     &&
     inj-event(auth_UserSendsLastMessageToApp(h_1, h_2, h_3, m_5, m_6))
     &&
     inj-event(auth_TTPInConeOfApp(m_7, m_8, m_9)).  
 
 (* Asking the key to the TTP *)
-query m_1:bistring, m_2:bitstring, m_3:bitstring, m_4:bitstring, h_1:bitstring, h_2:bitstring, h_3:bitstring, m_vpr:bitstring, m_5:bitstring, m_6:bitstring, m_vp:bitstring, m_7:bitstring, m_8:bitstring, m_9:bitstring, m_10:bitstring, m_11:bitstring, k_15:bitstring,m_16:bitstring, m_17:bitstring, m_18:bitstring, m_19:bitstring; 
-    inj-event(auth_AppCompletesProtocolFull(m_1, m_2, m_3, m_4, m_vpr, h_1, h_2, h_3, m_5, m_6, m_vp, m_10, m_11, m_16, m_17, m_18, m_19))
+query m_1:bitstring, m_2:bitstring, m_3:bitstring, m_4:bitstring, h_1:bitstring, h_2:bitstring, h_3:bitstring, m_vpr:bitstring, m_5:bitstring, m_6:bitstring, m_vp_2:bitstring, m_7:bitstring, m_8:bitstring, m_9:bitstring, m_10:bitstring, m_11:bitstring, k_15:bitstring,m_16:bitstring, m_17:bitstring, m_18:bitstring, m_19:bitstring; 
+    inj-event(auth_AppCompletesProtocolFull(m_1, m_2, m_3, m_4, m_vpr, h_1, h_2, h_3, m_5, m_6, m_vp_2, m_10, m_11, m_16, m_17, m_18, m_19))
     ==>
-    inj-event(auth_VerifierSendsLastMessageToAppFull(m_1, m_2, m_3, m_4, m_vpr, m_7, m_8, m_9, m_10, m_11))
+    inj-event(auth_VerifierSendsLastMessageToAppFull(m_1, m_2, m_3, m_4, m_vpr, m_vp_2, m_7, m_8, m_9, m_10, m_11))
     &&
     inj-event(auth_UserSendsLastMessageToApp(h_1, h_2, h_3, m_5, m_6))
     &&
     inj-event(auth_TTPSendsLastMessageToApp(m_7, m_8, m_9, m_16, m_17, m_18, m_19)). 
 
-query m_1:bistring, m_2:bitstring, m_3:bitstring, m_4:bitstring, h_1:bitstring, h_2:bitstring, h_3:bitstring,m_vp_2:bitstring, m_vpr:bitstring, m_5:bitstring, m_6:bitstring, m_vp:bitstring, m_7:bitstring, m_8:bitstring, m_9:bitstring, m_10:bitstring, m_11:bitstring, k_15:bitstring,m_16:bitstring, m_17:bitstring, m_18:bitstring, m_19:bitstring; 
+query m_1:bitstring, m_2:bitstring, m_3:bitstring, m_4:bitstring, h_1:bitstring, h_2:bitstring, h_3:bitstring,m_vp_2:bitstring, m_vpr:bitstring, m_5:bitstring, m_6:bitstring, m_vp:bitstring, m_7:bitstring, m_8:bitstring, m_9:bitstring, m_10:bitstring, m_11:bitstring, k_15:bitstring,m_16:bitstring, m_17:bitstring, m_18:bitstring, m_19:bitstring; 
     inj-event(auth_VerifierCompletesProtocol(m_1, m_2, m_3,m_4, m_vpr,m_vp_2, m_7, m_8, m_9, m_10, m_11, k_15))
     ==>
     inj-event(auth_AppSendsLastMessageToVerifier(m_1, m_2, m_3,m_4, m_vpr, h_1, h_2, h_3, m_5,m_6, m_vp_2, m_10, m_11))
@@ -649,7 +649,7 @@ query m_1:bistring, m_2:bitstring, m_3:bitstring, m_4:bitstring, h_1:bitstring, 
     &&
     inj-event(auth_TTPSendsLastMessageToVerifier(m_7, m_8)).
 
-query m_1:bistring, m_2:bitstring, m_3:bitstring, m_4:bitstring, h_1:bitstring, h_2:bitstring, h_3:bitstring,m_vp_2:bitstring, m_vpr:bitstring, m_5:bitstring, m_6:bitstring, m_vp:bitstring, m_7:bitstring, m_8:bitstring, m_9:bitstring, m_10:bitstring, m_11:bitstring, m_12:bitstring,m_16:bitstring, m_17:bitstring, m_18:bitstring, m_19:bitstring; 
+query m_1:bitstring, m_2:bitstring, m_3:bitstring, m_4:bitstring, h_1:bitstring, h_2:bitstring, h_3:bitstring,m_vp_2:bitstring, m_vpr:bitstring, m_5:bitstring, m_6:bitstring, m_vp:bitstring, m_7:bitstring, m_8:bitstring, m_9:bitstring, m_10:bitstring, m_11:bitstring, m_12:bitstring,m_16:bitstring, m_17:bitstring, m_18:bitstring, m_19:bitstring; 
     inj-event(auth_VerifierCompletesProtocolFull(m_1, m_2, m_3,m_4, m_vpr,m_vp_2, m_7, m_8, m_9, m_10, m_11, m_12))
     ==>
     inj-event(auth_AppSendsLastMessageToVerifier(m_1, m_2, m_3,m_4, m_vpr, h_1, h_2, h_3, m_5,m_6, m_vp_2, m_10, m_11))
