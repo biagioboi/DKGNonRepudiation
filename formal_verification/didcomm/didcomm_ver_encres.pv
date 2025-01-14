@@ -126,7 +126,7 @@ let user(talksOnlyToHonest:bool, c:channel, u:bitstring, exp_u:exponent, sku:Sec
     let symk_ua_enc_temp = hash_fork((K0, h0, keyEncCtoSTemp)) in
     new symk_5:SymmetricKey;
     let diddoc_su_signed = (g_su, sig(hash((sig_gsu, pka, g_su)),sku)) in
-    let h_1:bitstring = (KEXDHINIT, aenc((gsu, g_su), pka), enc((symk5, symk_5), symk_ua_enc_temp), enc(diddoc_su_signed, symk_5)) in
+    let h_1 = (KEXDHINIT, aenc((gsu, g_su), pka), enc((symk5, symk_5), symk_ua_enc_temp), enc(diddoc_su_signed, symk_5)) in
     out(c, (msgH1, h_1));
 
     (* Message H2 App -> User *)
@@ -196,7 +196,7 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, c3:channel, a:bitstring, e
     let symk_av_enc_temp = hash_fork((KC_temp, hc_temp, keyEncAtoCTemp)) in
     new symk_0:SymmetricKey;
     let diddoc_sav_signed = (g_sav, sig(hash((sig_gsav, pkv, g_sav)), ska)) in
-    let m_1:bitstring = (KEXDHINITSERVER, aenc((gsav, g_sav), pkv), enc((symk0, symk_0), symk_av_enc_temp), enc(diddoc_sav_signed, symk_0)) in
+    let m_1 = (KEXDHINITSERVER, aenc((gsav, g_sav), pkv), enc((symk0, symk_0), symk_av_enc_temp), enc(diddoc_sav_signed, symk_0)) in
     out(c2, (msg1,m_1));
     
     (* Message 2 CSS -> App *)
@@ -263,7 +263,7 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, c3:channel, a:bitstring, e
 
     new symk_6:SymmetricKey;
     let diddoc_sa_enc = (g_sa, sig(hash((sig_gsa, pku, g_sa)), ska)) in
-    let h_2:bitstring = (KEXDHREPLY, aenc((gsa, g_sa), pku), enc((symk6, symk_6), symk_ua_enc), enc(diddoc_sa_enc, symk_6)) in 
+    let h_2 = (KEXDHREPLY, aenc((gsa, g_sa), pku), enc((symk6, symk_6), symk_ua_enc), enc(diddoc_sa_enc, symk_6)) in 
     out(c, (msgH2, h_2));
     
 
@@ -290,7 +290,7 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, c3:channel, a:bitstring, e
     if n_r = n_r' then
     let (=vp_msg, vp:bitstring, sign_on_vp:bitstring) = vp_signed in
     if (check(vp, sign_on_vp, pku)) then
-    let vp_2_prev:bitstring = (vp_2_msg, vp_signed, sig(vp_signed, ska)) in
+    let vp_2_prev = (vp_2_msg, vp_signed, sig(vp_signed, ska)) in
     
     (* Message VP^2 App -> CSS *)
     new symk_10:SymmetricKey;
@@ -330,7 +330,7 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, c3:channel, a:bitstring, e
         (* Start handshake with the TTP *)
         new dhsecretATTP: exponent;
         let dhpublicATTP = exp(g, dhsecretATTP) in
-        let m_16:bitstring = (tag16, dhpublicATTP) in
+        let m_16 = (tag16, dhpublicATTP) in
         out(c3,(msg16, m_16));
 
         (* Receive the respond message *)
@@ -344,7 +344,7 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, c3:channel, a:bitstring, e
         let symk_attp_dec = hash_fork((K_ttp, h_ttp, keyEncTTPtoA)) in
     
         (* Transmit the msg signed, msg received by the CSS *)
-        let m_18:bitstring = enc((tag18, m10_dec, msg_sign), symk_attp_enc) in
+        let m_18 = enc((tag18, m10_dec, msg_sign), symk_attp_enc) in
         out(c3, (msg18, m_18));
 
         (* Receive the key for decrypt *)
@@ -383,7 +383,7 @@ let verifier(talksOnlyToHonest:bool, c:channel, c2:channel, v:bitstring, exp_v:e
     let symk_av_dec = hash_fork((K, h, keyEncAtoC)) in
     new symk_1:SymmetricKey;
     let diddoc_sc_signed = (g_sc,sig(hash((sig_gsc, pka, g_sc)), skv)) in
-    let m_2:bitstring = (KEXDHREPLYSERVER, aenc((gsc, g_sc), pka), enc((symk1, symk_1), symk_av_enc), enc(diddoc_sc_signed, symk_1)) in 
+    let m_2 = (KEXDHREPLYSERVER, aenc((gsc, g_sc), pka), enc((symk1, symk_1), symk_av_enc), enc(diddoc_sc_signed, symk_1)) in 
     out(c, (msg2, m_2));
 
 
@@ -446,7 +446,7 @@ let verifier(talksOnlyToHonest:bool, c:channel, c2:channel, v:bitstring, exp_v:e
     let symk_ttpv_enc_temp = hash_fork((K3_temp, h3_temp, keyEncVertoTTPTemp)) in
     new symk_12:SymmetricKey;
     let diddoc_sv_signed = (g_sv, sig(hash((sig_gsttp, pkttp, g_sv)), skv)) in
-    let m_7:bitstring = (KEXDHINITTTP, aenc((gsv, g_sv), pkttp), enc((symk12, symk_12), symk_ttpv_enc_temp), enc(diddoc_sv_signed, symk_12)) in 
+    let m_7 = (KEXDHINITTTP, aenc((gsv, g_sv), pkttp), enc((symk12, symk_12), symk_ttpv_enc_temp), enc(diddoc_sv_signed, symk_12)) in 
     out(c2, (msg7, m_7));
 
     (* Message 8 TTP -> CSS *)
@@ -548,7 +548,7 @@ let trustedThirdParty(talksOnlyToHonest:bool, c:channel, c2:channel, ttp:bitstri
     let symk_ttpv_dec = hash_fork((K0, h0, keyEncVertoTTP)) in
     new symk_13:SymmetricKey;
     let diddoc_sttp_signed = (g_sttp, sig((sig_gsttp, pkv, g_sttp),sk_ttp)) in
-    let m_8:bitstring = (KEXDHREPLYTTP, aenc((gsttp, g_sttp), pkv), enc((symk13, symk_13), symk_ttpv_enc), enc(diddoc_sttp_signed, symk_13)) in
+    let m_8 = (KEXDHREPLYTTP, aenc((gsttp, g_sttp), pkv), enc((symk13, symk_13), symk_ttpv_enc), enc(diddoc_sttp_signed, symk_13)) in
     event auth_TTPSendsLastMessageToVerifier(m_7, m_8);
     out(c, (msg8, m_8));
 
@@ -568,7 +568,7 @@ let trustedThirdParty(talksOnlyToHonest:bool, c:channel, c2:channel, ttp:bitstri
     let dhpublicTTPA = exp(g, dhsecretTTPA) in
     let K_app = exp(dhpublicATTP, dhsecretTTPA) in
     let h_app = hash_fork((dhpublicATTP, dhpublicTTPA, K_app)) in
-    let m_17:bitstring = (tag17, dhpublicTTPA, sig_hash_k(h_app, sk_ttp)) in 
+    let m_17 = (tag17, dhpublicTTPA, sig_hash_k(h_app, sk_ttp)) in 
     out(c2, (msg17, m_17));
     
 
