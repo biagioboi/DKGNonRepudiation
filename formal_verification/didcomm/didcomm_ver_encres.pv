@@ -105,6 +105,8 @@ event auth_TTPSendsLastMessageToApp(bitstring, bitstring, bitstring, bitstring, 
 event auth_TTPCompleteProtocolFull(bitstring, bitstring, bitstring, bitstring, bitstring, bitstring, bitstring, bitstring).
 event auth_TTPCompleteProtocol(bitstring, bitstring, bitstring).
 
+
+event reach.
 (* --------------------------------------------------------------------------------------------------------- *)
 (* End Definitions *)
 (* Start Agent Macros *)
@@ -129,6 +131,7 @@ let user(talksOnlyToHonest:bool, c:channel, u:bitstring, exp_u:exponent, sku:Sec
     let h_1 = (KEXDHINIT, aenc((gsu, g_su), pka), enc((symk5, symk_5), symk_ua_enc_temp), enc(diddoc_su_signed, symk_5)) in
     out(c, (msgH1, h_1));
 
+    event reach;
     (* Message H2 App -> User *)
     in(c, (=msgH2, h_2:bitstring));
     let (=KEXDHREPLY, g_sa_enc: bitstring, symk_6_enc: bitstring, diddoc_sa_signed_enc:bitstring) = h_2 in
@@ -611,6 +614,9 @@ let trustedThirdParty(talksOnlyToHonest:bool, c:channel, c2:channel, ttp:bitstri
 (* End Open Network *)
 (* Start Assumptions *)
 (* --------------------------------------------------------------------------------------------------------- *)
+
+(* Sanity Check *)
+query event(reach).
 
 (* SECRECY *)
 query attacker(vp_fromProver). 
