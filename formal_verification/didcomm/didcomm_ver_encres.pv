@@ -131,13 +131,11 @@ let user(talksOnlyToHonest:bool, c:channel, u:bitstring, exp_u:exponent, sku:Sec
     let h_1 = (KEXDHINIT, aenc((gsu, g_su), pka), enc((symk5, symk_5), symk_ua_enc_temp), enc(diddoc_su_signed, symk_5)) in
     out(c, (msgH1, h_1));
 
-    event reach;
     (* Message H2 App -> User *)
     in(c, (=msgH2, h_2:bitstring));
     let (=KEXDHREPLY, g_sa_enc: bitstring, symk_6_enc: bitstring, diddoc_sa_signed_enc:bitstring) = h_2 in
     let (=gsa, g_sa:G) = adec(g_sa_enc, sku) in
     let K = exp(g_sa, su) in
-    (*let h = hash_fork(((g_su, g_sa, K), keyEncStoCTemp)) in*)
     let h = hash_fork((g_su, g_sa, K)) in
     let symk_ua_enc = hash_fork((K, h, keyEncCtoS)) in
     let symk_ua_dec = hash_fork((K, h, keyEncStoC)) in
@@ -177,8 +175,8 @@ let user(talksOnlyToHonest:bool, c:channel, u:bitstring, exp_u:exponent, sku:Sec
     let vp = (vp_msg, (vpr_rec, vc), sig((vpr_rec, vc), sku)) in
     new symk_9:SymmetricKey;
     let symk9_enc = enc((symk9, symk_9), symk_ua_enc) in
-    let m_6 = (symk9_enc, enc((tag6, n_r, vp), symk_ua_enc)) in
-
+    let m_6 = (symk9_enc, enc((tag6, n_r, vp), symk_9)) in
+    
     event auth_UserSendsLastMessageToApp(h_1, h_2, h_3, m_5,m_6);
     out(c, (msg6, m_6));
     
@@ -201,7 +199,7 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, c3:channel, a:bitstring, e
     let diddoc_sav_signed = (g_sav, sig(hash((sig_gsav, pkv, g_sav)), ska)) in
     let m_1 = (KEXDHINITSERVER, aenc((gsav, g_sav), pkv), enc((symk0, symk_0), symk_av_enc_temp), enc(diddoc_sav_signed, symk_0)) in
     out(c2, (msg1,m_1));
-    
+
     (* Message 2 CSS -> App *)
     (* Send the response *)
     in(c2, (=msg2, m_2:bitstring));
@@ -268,7 +266,6 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, c3:channel, a:bitstring, e
     let diddoc_sa_enc = (g_sa, sig(hash((sig_gsa, pku, g_sa)), ska)) in
     let h_2 = (KEXDHREPLY, aenc((gsa, g_sa), pku), enc((symk6, symk_6), symk_ua_enc), enc(diddoc_sa_enc, symk_6)) in 
     out(c, (msgH2, h_2));
-    
 
     (* Message H3 User -> App *)
     (* Receive the ack, no need to check anything on this *)
@@ -285,21 +282,25 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, c3:channel, a:bitstring, e
     event auth_AppSendsLastMessageToUser(m_1,m_2,m_3, m_4, m_vpr, h_1, h_2, h_3, m_5);
     out(c, (msg5, m_5));
 
+    (* Here we are able to reach the process, line 286. After this we are not able to reach*)
+    
     (* Message 6 User -> App *)
     in(c, (=msg6, m_6:bitstring));
     let (symk9_enc:bitstring, m6_enc:bitstring) = m_6 in
     let (=symk9, symk_9:SymmetricKey) = dec(symk9_enc, symk_ua_dec) in
     let (=tag6, n_r':bitstring, vp_signed:bitstring) = dec(m6_enc, symk_9) in
-    if n_r = n_r' then
+    if n_r = n_r'  then
     let (=vp_msg, vp:bitstring, sign_on_vp:bitstring) = vp_signed in
     if (check(vp, sign_on_vp, pku)) then
     let vp_2_prev = (vp_2_msg, vp_signed, sig(vp_signed, ska)) in
+    event reach;
     
     (* Message VP^2 App -> CSS *)
     new symk_10:SymmetricKey;
     let symk10_enc = enc((symk10, symk_10), symk_av_enc) in
     let m_vp_2 = (symk10_enc, enc((tag_vp_2,vp_2_prev),symk_10)) in
     out(c2, (msgVP2, m_vp_2));
+
 
     (* Message 10 CSS -> App *)
     in(c2, (=msg10, m_10:bitstring));
@@ -731,26 +732,26 @@ process (*use root process for setup *)
 
     (*let agents dance*)
     (
-         (!user(true,  c, u, exp_u, sku, a, pk(ska),  exp(g,exp_a), v, pk(skv),  exp(g,exp_v), vc, uri_req)) |
-        (!user(false, c, u, exp_u, sku, e, pk(sk_E), exp(g,exp_E), v, pk(skv),  exp(g,exp_v), vc, uri_req)) |
-        (!user(false, c, u, exp_u, sku, a, pk(ska),  exp(g,exp_a), e, pk(sk_E), exp(g,exp_E), vc, euri)) |
-        (!user(false, c, u, exp_u, sku, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E), vc, euri)) |
         (!app(true,  c, c2, c4, a, exp_a, ska, u, pk(sku),  exp(g,exp_u), v, pk(skv),  exp(g,exp_v), i, pk(ski), ttp, pk(sk_ttp), exp(g,exp_ttp),uri_req)) |
-        (!app(false, c, c2, c4, a, exp_a, ska, e, pk(sk_E), exp(g,exp_E), v, pk(skv),  exp(g,exp_v), i, pk(ski), ttp, pk(sk_ttp), exp(g,exp_ttp),uri_req)) |
-        (!app(false, c, c2, c4, a, exp_a, ska, u, pk(sku),  exp(g,exp_u), e, pk(sk_E), exp(g,exp_E), i, pk(ski), ttp, pk(sk_ttp), exp(g,exp_ttp), euri)) |
-        (!app(false, c, c2, c4, a, exp_a, ska, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E), i, pk(ski), ttp, pk(sk_ttp), exp(g,exp_ttp), euri)) |
+        (*(!app(false, c, c2, c4, a, exp_a, ska, e, pk(sk_E), exp(g,exp_E), v, pk(skv),  exp(g,exp_v), i, pk(ski), ttp, pk(sk_ttp), exp(g,exp_ttp),uri_req)) |
+        (!app(false, c, c2, c4, a, exp_a, ska, u, pk(sku),  exp(g,exp_u), e, pk(sk_E), exp(g,exp_E), i, pk(ski), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
+        (!app(false, c, c2, c4, a, exp_a, ska, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E), i, pk(ski), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |*)
         (!verifier(true,  c2, c3, v, exp_v, skv, u, pk(sku),  exp(g,exp_u), a, pk(ska),  exp(g,exp_a), i, pk(ski),  ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
-        (!verifier(false, c2, c3, v, exp_v, skv, e, pk(sk_E), exp(g,exp_E), a, pk(ska),  exp(g,exp_a), i, pk(ski),  ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
+       (*(!verifier(false, c2, c3, v, exp_v, skv, e, pk(sk_E), exp(g,exp_E), a, pk(ska),  exp(g,exp_a), i, pk(ski),  ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
         (!verifier(false, c2, c3, v, exp_v, skv, u, pk(sku),  exp(g,exp_u), e, pk(sk_E), exp(g,exp_E), i, pk(ski),  ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
         (!verifier(false, c2, c3, v, exp_v, skv, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E), i, pk(ski),  ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
         (!verifier(false, c2, c3, v, exp_v, skv, u, pk(sku),  exp(g,exp_u), a, pk(ska),  exp(g,exp_a), e, pk(sk_E), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
         (!verifier(false, c2, c3, v, exp_v, skv, e, pk(sk_E), exp(g,exp_E), a, pk(ska),  exp(g,exp_a), e, pk(sk_E), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
         (!verifier(false, c2, c3, v, exp_v, skv, u, pk(sku),  exp(g,exp_u), e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
-        (!verifier(false, c2, c3, v, exp_v, skv, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
-        (!trustedThirdParty(true,  c3, c4, ttp, exp_ttp, sk_ttp, a, pk(ska),  exp(g,exp_a), v, pk(skv),  exp(g,exp_v))) |
+        (!verifier(false, c2, c3, v, exp_v, skv, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) | *)
+        (!user(true,  c, u, exp_u, sku, a, pk(ska),  exp(g,exp_a), v, pk(skv),  exp(g,exp_v), vc, uri_req))
+        (*(!user(false, c, u, exp_u, sku, e, pk(sk_E), exp(g,exp_E), v, pk(skv),  exp(g,exp_v), vc, uri_req)) |
+        (!user(false, c, u, exp_u, sku, a, pk(ska),  exp(g,exp_a), e, pk(sk_E), exp(g,exp_E), vc, euri)) |
+        (!user(false, c, u, exp_u, sku, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E), vc, euri)) *)
+        (*(!trustedThirdParty(true,  c3, c4, ttp, exp_ttp, sk_ttp, a, pk(ska),  exp(g,exp_a), v, pk(skv),  exp(g,exp_v))) |
         (!trustedThirdParty(false, c3, c4, ttp, exp_ttp, sk_ttp, e, pk(sk_E), exp(g,exp_E), v, pk(skv),  exp(g,exp_v))) |
         (!trustedThirdParty(false, c3, c4, ttp, exp_ttp, sk_ttp, a, pk(ska),  exp(g,exp_a), e, pk(sk_E), exp(g,exp_E))) |
-        (!trustedThirdParty(false, c3, c4, ttp, exp_ttp, sk_ttp, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E)))
+        (!trustedThirdParty(false, c3, c4, ttp, exp_ttp, sk_ttp, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E)))*)
     
     )
 
