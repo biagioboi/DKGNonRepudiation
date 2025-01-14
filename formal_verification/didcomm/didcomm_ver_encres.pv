@@ -172,7 +172,8 @@ let user(talksOnlyToHonest:bool, c:channel, u:bitstring, exp_u:exponent, sku:Sec
     
     (* Message 6 User -> App *)
     (* Produce the VP as response to the VPR *)
-    let vp = (vp_msg, (vpr_rec, vc), sig((vpr_rec, vc), sku)) in
+    let vp_wrap = (vpr_rec, vc) in
+    let vp = (vp_msg, vp_wrap, sig(vp_wrap, sku)) in
     new symk_9:SymmetricKey;
     let symk9_enc = enc((symk9, symk_9), symk_ua_enc) in
     let m_6 = (symk9_enc, enc((tag6, n_r, vp), symk_9)) in
