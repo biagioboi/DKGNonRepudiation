@@ -2,8 +2,6 @@
 (* DIDComm *)
 (* This is the full version of the protocol, where we send the encrypted resource and then the key once we receives the right signature *)
 (* --------------------------------------------------------------------------------------------------------- *)
-(* TODO: if the hash does not match (line 297) then we should reach the TTP, but IDK how to implement this part *)
-(* --------------------------------------------------------------------------------------------------------- *)
 (* Start Definitions *)
 (* --------------------------------------------------------------------------------------------------------- *)
 
