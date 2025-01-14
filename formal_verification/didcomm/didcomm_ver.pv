@@ -180,7 +180,7 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, a:bitstring, exp_a:exponen
     let h = hash_fork(((g_su, g_sa, K), keyEncStoCTemp)) in
     new symk_1:SymmetricKey;
     let diddoc_sa_enc = (g_sa, sig(hash((sig_gsa, pku, g_sa)), ska)) in
-    let m_2:bitstring = (KEXDHREPLY, aenc((gsa, g_sa), pkv), enc((symk1, symk_1), h), enc(diddoc_sa_enc, symk_1)) in 
+    let m_2:bitstring = (KEXDHREPLY, aenc((gsa, g_sa), pku), enc((symk1, symk_1), h), enc(diddoc_sa_enc, symk_1)) in 
     out(c, (msg2, m_2));
     
     let symk_ua_enc = hash_fork((K, h, keyEncStoC)) in
@@ -195,7 +195,7 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, a:bitstring, exp_a:exponen
     let hc_temp = hash_fork(((exp_v, g_sav, KC_temp), keyEncAtoCTemp)) in
     new symk_2:SymmetricKey;
     let diddoc_sav_signed = (g_sav, sig(hash((sig_gsav, pkv, g_sav)), ska)) in
-    let m_3:bitstring = (KEXDHINITSERVER, aenc((gsav, g_sav), pku), enc((symk2, symk_2), hc_temp), enc(diddoc_sav_signed, symk_2)) in
+    let m_3:bitstring = (KEXDHINITSERVER, aenc((gsav, g_sav), pkv), enc((symk2, symk_2), hc_temp), enc(diddoc_sav_signed, symk_2)) in
     out(c2, (msg3, m_3));
 
     (* Message 4 CSS -> App *)
@@ -336,7 +336,7 @@ let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, exp_v:exponent, skv
     let (iss'':bitstring, u'':bitstring) = vc_rec in
     if (iss'', u'') = (i, u) then
     let (=dec_vpr_msg, v'':bitstring, rule'':bitstring, n_c'':bitstring) = vpr_rec in
-    if (v'', rule'', n_c'') = (c, rule, n_c) then
+    if (v'', rule'', n_c'') = (v, rule, n_c) then
 
     let (u''':bitstring, i''':bitstring, uri''':bitstring, a''':bitstring) = rule'' in
     if (u''', i''', uri''', a''') = (u, i, uri, a) then
