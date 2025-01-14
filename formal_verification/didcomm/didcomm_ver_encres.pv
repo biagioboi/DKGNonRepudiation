@@ -452,6 +452,8 @@ let verifier(talksOnlyToHonest:bool, c:channel, c2:channel, v:bitstring, exp_v:e
     let diddoc_sv_signed = (g_sv, sig(hash((sig_gsttp, pkttp, g_sv)), skv)) in
     let m_7 = (KEXDHINITTTP, aenc((gsv, g_sv), pkttp), enc((symk12, symk_12), symk_ttpv_enc_temp), enc(diddoc_sv_signed, symk_12)) in 
     out(c2, (msg7, m_7));
+
+    event reach;
     (* event reach; executed false *)
     (* Message 8 TTP -> CSS *)
     in(c2, (=msg8, m_8:bitstring));
@@ -542,7 +544,7 @@ let trustedThirdParty(talksOnlyToHonest:bool, c:channel, c2:channel, ttp:bitstri
     let (=symk12, symk_12:SymmetricKey) = dec(symk_12_enc, symk_ttpv_dec_temp) in
     let (g_sv':G, g_sv_signed:bitstring) = dec(diddoc_sv_signed_enc, symk_12) in
     if check((sig_gsttp, pk(sk_ttp), g_sv), g_sv_signed , pkv) then
-    event reach;
+    
 
     (* Message 8 TTP -> CSS *)
     new sttp: exponent;
@@ -619,10 +621,10 @@ let trustedThirdParty(talksOnlyToHonest:bool, c:channel, c2:channel, ttp:bitstri
 (* --------------------------------------------------------------------------------------------------------- *)
 
 (* Sanity Check *) 
-(* query event(reach). endend *)
+query event(reach).
 
 (* SECRECY *)
-query attacker(vp_fromProver). 
+(* query attacker(vp_fromProver). 
 query attacker(resource_fromApp). 
 query attacker(resource_fromVerifier).
 query attacker(resource_fromTTP).
@@ -673,7 +675,7 @@ query m_1:bitstring, m_2:bitstring, m_3:bitstring, m_4:bitstring, h_1:bitstring,
     &&
     inj-event(auth_UserSendsLastMessageToApp(h_1, h_2, h_3, m_5, m_6))
     &&
-    inj-event(auth_TTPSendsLastMessageToVerifierFull(m_7, m_8, m_16, m_17, m_18, m_19, m_12)).
+    inj-event(auth_TTPSendsLastMessageToVerifierFull(m_7, m_8, m_16, m_17, m_18, m_19, m_12)). *)
 
 
 (* --------------------------------------------------------------------------------------------------------- *)
@@ -735,25 +737,25 @@ process (*use root process for setup *)
     (*let agents dance*)
     (
         (!app(true,  c, c2, c4, a, exp_a, ska, u, pk(sku),  exp(g,exp_u), v, pk(skv),  exp(g,exp_v), i, pk(ski), ttp, pk(sk_ttp), exp(g,exp_ttp),uri_req)) |
-        (!app(false, c, c2, c4, a, exp_a, ska, e, pk(sk_E), exp(g,exp_E), v, pk(skv),  exp(g,exp_v), i, pk(ski), ttp, pk(sk_ttp), exp(g,exp_ttp),uri_req)) |
+        (!verifier(true,  c2, c3, v, exp_v, skv, u, pk(sku),  exp(g,exp_u), a, pk(ska),  exp(g,exp_a), i, pk(ski),  ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
+        (!user(true,  c, u, exp_u, sku, a, pk(ska),  exp(g,exp_a), v, pk(skv),  exp(g,exp_v), vc, uri_req)) |
+        (!trustedThirdParty(true,  c3, c4, ttp, exp_ttp, sk_ttp, a, pk(ska),  exp(g,exp_a), v, pk(skv),  exp(g,exp_v)))
+        (*(!app(false, c, c2, c4, a, exp_a, ska, e, pk(sk_E), exp(g,exp_E), v, pk(skv),  exp(g,exp_v), i, pk(ski), ttp, pk(sk_ttp), exp(g,exp_ttp),uri_req)) |
         (!app(false, c, c2, c4, a, exp_a, ska, u, pk(sku),  exp(g,exp_u), e, pk(sk_E), exp(g,exp_E), i, pk(ski), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
         (!app(false, c, c2, c4, a, exp_a, ska, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E), i, pk(ski), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
-        (!verifier(true,  c2, c3, v, exp_v, skv, u, pk(sku),  exp(g,exp_u), a, pk(ska),  exp(g,exp_a), i, pk(ski),  ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
-       (!verifier(false, c2, c3, v, exp_v, skv, e, pk(sk_E), exp(g,exp_E), a, pk(ska),  exp(g,exp_a), i, pk(ski),  ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
+        (!verifier(false, c2, c3, v, exp_v, skv, e, pk(sk_E), exp(g,exp_E), a, pk(ska),  exp(g,exp_a), i, pk(ski),  ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
         (!verifier(false, c2, c3, v, exp_v, skv, u, pk(sku),  exp(g,exp_u), e, pk(sk_E), exp(g,exp_E), i, pk(ski),  ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
         (!verifier(false, c2, c3, v, exp_v, skv, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E), i, pk(ski),  ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
         (!verifier(false, c2, c3, v, exp_v, skv, u, pk(sku),  exp(g,exp_u), a, pk(ska),  exp(g,exp_a), e, pk(sk_E), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
         (!verifier(false, c2, c3, v, exp_v, skv, e, pk(sk_E), exp(g,exp_E), a, pk(ska),  exp(g,exp_a), e, pk(sk_E), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
         (!verifier(false, c2, c3, v, exp_v, skv, u, pk(sku),  exp(g,exp_u), e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
         (!verifier(false, c2, c3, v, exp_v, skv, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) | 
-        (!user(true,  c, u, exp_u, sku, a, pk(ska),  exp(g,exp_a), v, pk(skv),  exp(g,exp_v), vc, uri_req)) |
         (!user(false, c, u, exp_u, sku, e, pk(sk_E), exp(g,exp_E), v, pk(skv),  exp(g,exp_v), vc, uri_req)) |
         (!user(false, c, u, exp_u, sku, a, pk(ska),  exp(g,exp_a), e, pk(sk_E), exp(g,exp_E), vc, euri)) |
         (!user(false, c, u, exp_u, sku, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E), vc, euri)) |
-        (!trustedThirdParty(true,  c3, c4, ttp, exp_ttp, sk_ttp, a, pk(ska),  exp(g,exp_a), v, pk(skv),  exp(g,exp_v))) |
         (!trustedThirdParty(false, c3, c4, ttp, exp_ttp, sk_ttp, e, pk(sk_E), exp(g,exp_E), v, pk(skv),  exp(g,exp_v))) |
         (!trustedThirdParty(false, c3, c4, ttp, exp_ttp, sk_ttp, a, pk(ska),  exp(g,exp_a), e, pk(sk_E), exp(g,exp_E))) |
-        (!trustedThirdParty(false, c3, c4, ttp, exp_ttp, sk_ttp, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E)))
+        (!trustedThirdParty(false, c3, c4, ttp, exp_ttp, sk_ttp, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E))) *)
     
     )
 
