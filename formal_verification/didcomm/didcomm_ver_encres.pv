@@ -294,14 +294,13 @@ let app(talksOnlyToHonest:bool, c:channel,c2:channel, c3:channel, a:bitstring, e
     let (=vp_msg, vp:bitstring, sign_on_vp:bitstring) = vp_signed in
     if (check(vp, sign_on_vp, pku)) then
     let vp_2_prev = (vp_2_msg, vp_signed, sig(vp_signed, ska)) in
-    event reach;
+    
     
     (* Message VP^2 App -> CSS *)
     new symk_10:SymmetricKey;
     let symk10_enc = enc((symk10, symk_10), symk_av_enc) in
     let m_vp_2 = (symk10_enc, enc((tag_vp_2,vp_2_prev),symk_10)) in
     out(c2, (msgVP2, m_vp_2));
-
 
     (* Message 10 CSS -> App *)
     in(c2, (=msg10, m_10:bitstring));
@@ -441,7 +440,7 @@ let verifier(talksOnlyToHonest:bool, c:channel, c2:channel, v:bitstring, exp_v:e
 
     let (u''':bitstring, i''':bitstring, uri''':bitstring, a''':bitstring) = rule'' in
     if (u''', i''', uri''', a''') = (u, i, uri, a) then
-    
+    (* event reach; executed *)
     (* Begin communication with TTP *)
     (* Message 7 CSS -> TTP *)
     new sv: exponent;
@@ -453,7 +452,7 @@ let verifier(talksOnlyToHonest:bool, c:channel, c2:channel, v:bitstring, exp_v:e
     let diddoc_sv_signed = (g_sv, sig(hash((sig_gsttp, pkttp, g_sv)), skv)) in
     let m_7 = (KEXDHINITTTP, aenc((gsv, g_sv), pkttp), enc((symk12, symk_12), symk_ttpv_enc_temp), enc(diddoc_sv_signed, symk_12)) in 
     out(c2, (msg7, m_7));
-
+    (* event reach; executed false *)
     (* Message 8 TTP -> CSS *)
     in(c2, (=msg8, m_8:bitstring));
     let (=KEXDHREPLYTTP, g_sttp_enc: bitstring, symk13_enc:bitstring, g_sttp_enc_signed:bitstring) = m_8 in
@@ -466,8 +465,8 @@ let verifier(talksOnlyToHonest:bool, c:channel, c2:channel, v:bitstring, exp_v:e
     let (=symk13, symk_13:SymmetricKey) = dec(symk13_enc, symk_ttpv_dec) in
     let (g_sttp':G, sign_g_sttp:bitstring) = dec(g_sttp_enc_signed, symk_13) in
     if check(hash((sig_gsttp, pk(skv), g_sttp)), sign_g_sttp, pkttp) then
-
-    
+    (* event reach; executed - We checked and fixed message 8 from TTP side and now it doesn't terminate. *)
+    (*event reach;*)
     (* Message 9 CSS -> TTP *)
     (* Send ack to the TTP *)
     new symk_14: SymmetricKey;
@@ -485,6 +484,7 @@ let verifier(talksOnlyToHonest:bool, c:channel, c2:channel, v:bitstring, exp_v:e
     new resource:bitstring;
     let m_res = (encrypted_k15, enc((theResource, resource), symk_k15), hash((theResource, resource))) in
 
+    
     (* Message 10 - CSS -> App *)
     (* Message containing the encrypted resource *)
     new symk_k16: SymmetricKey;
@@ -539,9 +539,10 @@ let trustedThirdParty(talksOnlyToHonest:bool, c:channel, c2:channel, ttp:bitstri
     let K = exp(g_sv, exp_ttp) in
     let h = hash_fork((exp(g, exp_ttp), g_sv, K)) in
     let symk_ttpv_dec_temp = hash_fork((K, h, keyEncVertoTTPTemp)) in
-    let (=symk12, symk_12:SymmetricKey) = dec(symk_12_enc, h) in
+    let (=symk12, symk_12:SymmetricKey) = dec(symk_12_enc, symk_ttpv_dec_temp) in
     let (g_sv':G, g_sv_signed:bitstring) = dec(diddoc_sv_signed_enc, symk_12) in
     if check((sig_gsttp, pk(sk_ttp), g_sv), g_sv_signed , pkv) then
+    event reach;
 
     (* Message 8 TTP -> CSS *)
     new sttp: exponent;
@@ -556,7 +557,7 @@ let trustedThirdParty(talksOnlyToHonest:bool, c:channel, c2:channel, ttp:bitstri
     let m_8 = (KEXDHREPLYTTP, aenc((gsttp, g_sttp), pkv), enc((symk13, symk_13), symk_ttpv_enc), enc(diddoc_sttp_signed, symk_13)) in
     event auth_TTPSendsLastMessageToVerifier(m_7, m_8);
     out(c, (msg8, m_8));
-
+    (*event reach;   true, so there is an error also in the receiving of msg 7 maybe;  *)
     (* Message 9 CSS -> TTP *)
     (* Receive the ack, no need to check anything on this *)
     in(c, (=msg9, m_9:bitstring));
@@ -617,8 +618,8 @@ let trustedThirdParty(talksOnlyToHonest:bool, c:channel, c2:channel, ttp:bitstri
 (* Start Assumptions *)
 (* --------------------------------------------------------------------------------------------------------- *)
 
-(* Sanity Check *)
-query event(reach).
+(* Sanity Check *) 
+(* query event(reach). endend *)
 
 (* SECRECY *)
 query attacker(vp_fromProver). 
@@ -734,25 +735,25 @@ process (*use root process for setup *)
     (*let agents dance*)
     (
         (!app(true,  c, c2, c4, a, exp_a, ska, u, pk(sku),  exp(g,exp_u), v, pk(skv),  exp(g,exp_v), i, pk(ski), ttp, pk(sk_ttp), exp(g,exp_ttp),uri_req)) |
-        (*(!app(false, c, c2, c4, a, exp_a, ska, e, pk(sk_E), exp(g,exp_E), v, pk(skv),  exp(g,exp_v), i, pk(ski), ttp, pk(sk_ttp), exp(g,exp_ttp),uri_req)) |
+        (!app(false, c, c2, c4, a, exp_a, ska, e, pk(sk_E), exp(g,exp_E), v, pk(skv),  exp(g,exp_v), i, pk(ski), ttp, pk(sk_ttp), exp(g,exp_ttp),uri_req)) |
         (!app(false, c, c2, c4, a, exp_a, ska, u, pk(sku),  exp(g,exp_u), e, pk(sk_E), exp(g,exp_E), i, pk(ski), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
-        (!app(false, c, c2, c4, a, exp_a, ska, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E), i, pk(ski), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |*)
+        (!app(false, c, c2, c4, a, exp_a, ska, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E), i, pk(ski), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
         (!verifier(true,  c2, c3, v, exp_v, skv, u, pk(sku),  exp(g,exp_u), a, pk(ska),  exp(g,exp_a), i, pk(ski),  ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
-       (*(!verifier(false, c2, c3, v, exp_v, skv, e, pk(sk_E), exp(g,exp_E), a, pk(ska),  exp(g,exp_a), i, pk(ski),  ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
+       (!verifier(false, c2, c3, v, exp_v, skv, e, pk(sk_E), exp(g,exp_E), a, pk(ska),  exp(g,exp_a), i, pk(ski),  ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
         (!verifier(false, c2, c3, v, exp_v, skv, u, pk(sku),  exp(g,exp_u), e, pk(sk_E), exp(g,exp_E), i, pk(ski),  ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
         (!verifier(false, c2, c3, v, exp_v, skv, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E), i, pk(ski),  ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
         (!verifier(false, c2, c3, v, exp_v, skv, u, pk(sku),  exp(g,exp_u), a, pk(ska),  exp(g,exp_a), e, pk(sk_E), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
         (!verifier(false, c2, c3, v, exp_v, skv, e, pk(sk_E), exp(g,exp_E), a, pk(ska),  exp(g,exp_a), e, pk(sk_E), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
         (!verifier(false, c2, c3, v, exp_v, skv, u, pk(sku),  exp(g,exp_u), e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
-        (!verifier(false, c2, c3, v, exp_v, skv, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) | *)
-        (!user(true,  c, u, exp_u, sku, a, pk(ska),  exp(g,exp_a), v, pk(skv),  exp(g,exp_v), vc, uri_req))
-        (*(!user(false, c, u, exp_u, sku, e, pk(sk_E), exp(g,exp_E), v, pk(skv),  exp(g,exp_v), vc, uri_req)) |
+        (!verifier(false, c2, c3, v, exp_v, skv, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) | 
+        (!user(true,  c, u, exp_u, sku, a, pk(ska),  exp(g,exp_a), v, pk(skv),  exp(g,exp_v), vc, uri_req)) |
+        (!user(false, c, u, exp_u, sku, e, pk(sk_E), exp(g,exp_E), v, pk(skv),  exp(g,exp_v), vc, uri_req)) |
         (!user(false, c, u, exp_u, sku, a, pk(ska),  exp(g,exp_a), e, pk(sk_E), exp(g,exp_E), vc, euri)) |
-        (!user(false, c, u, exp_u, sku, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E), vc, euri)) *)
-        (*(!trustedThirdParty(true,  c3, c4, ttp, exp_ttp, sk_ttp, a, pk(ska),  exp(g,exp_a), v, pk(skv),  exp(g,exp_v))) |
+        (!user(false, c, u, exp_u, sku, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E), vc, euri)) |
+        (!trustedThirdParty(true,  c3, c4, ttp, exp_ttp, sk_ttp, a, pk(ska),  exp(g,exp_a), v, pk(skv),  exp(g,exp_v))) |
         (!trustedThirdParty(false, c3, c4, ttp, exp_ttp, sk_ttp, e, pk(sk_E), exp(g,exp_E), v, pk(skv),  exp(g,exp_v))) |
         (!trustedThirdParty(false, c3, c4, ttp, exp_ttp, sk_ttp, a, pk(ska),  exp(g,exp_a), e, pk(sk_E), exp(g,exp_E))) |
-        (!trustedThirdParty(false, c3, c4, ttp, exp_ttp, sk_ttp, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E)))*)
+        (!trustedThirdParty(false, c3, c4, ttp, exp_ttp, sk_ttp, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E)))
     
     )
 
