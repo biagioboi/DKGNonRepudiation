@@ -1,465 +1,473 @@
 (* --------------------------------------------------------------------------------------------------------- *)
 (* DIDComm *)
-(* This is a derivation of the full protocol, where we simply send the resource, rather then sending the encrypted version of it. *)
-(* --------------------------------------------------------------------------------------------------------- *)
-
+(* This is the full version of the protocol, where we send the encrypted resource and then the key once we receives the right signature *)
 (* --------------------------------------------------------------------------------------------------------- *)
 (* Start Definitions *)
 (* --------------------------------------------------------------------------------------------------------- *)
 
-(* START keys *)
-type SymmetricKey.
-type SecretKey.
-type PublicKey.
-fun pk(SecretKey):PublicKey.
-(* END keys *)
-type G.
-const g: G.
-type exponent.
+(* Types Definition *)
+type SymmetricKey.  (* Symmetric Keys *)
+type SecretKey.     (* Secret Keys *)
+type PublicKey.     (* Public Keys*)
+type G.             (* Generator *)
+type exponent.      (* Exponent *)
+
+(* Tags Definition *)
+type tag.   (* Tag for message *)
+type ktag.  (* Tag for symmetric key *)
+type stag.  (* Tag for signature *)
+type etag.  (* Tag for exponent *)
+
+(* Tags for the encapsulation of the messages in plaintext *)
+const tag_m1, tag_m2, tag_m3, tag_m4, tag_m5, tag_h1, tag_h2, tag_h3, tag_m6, tag_m7, tag_m8, tag_m9:tag [data].
+
+(* Tags for the transmission of the messages *)
+const tag_M1, tag_M2, tag_M3, tag_M4, tag_M5, tag_H1, tag_H2, tag_H3, tag_M6, tag_M7, tag_M8, tag_M9:tag [data].
+
+(* Tags for the encryption of symmetric key messages - for the single message *)
+const tag_k0, tag_k1, tag_k2, tag_k3, tag_k4, tag_k5, tag_k6, tag_k7, tag_k8, tag_k9, tag_k10, tag_k11: ktag[data].
+
+(* Tags for the encryption of symmetric key messages - for the session key *)
+const tag_k_g2v2sav, tag_k_g2sav2sc, tag_k_g2a2su, tag_k_g2su2sa: ktag[data].
+
+(* Tags for the signature of exponent *)
+const tag_sig_g2su, tag_sig_g2sa, tag_sig_g2sav, tag_sig_g2sc, tag_sig_g2sv: stag[data].
+
+(* Tags for the encryption of exponent *)
+const tag_g2su, tag_g2sa, tag_g2sav, tag_g2sc, tag_g2st, tag_g2sv: etag [data].
+
+const tag_vpr, tag_vp, tag_vc, tag_sig_vp, tag_pack_vpr_2, tag_sig_vpr_2, tag_sig_vp_2, tag_attr, tag_vpr_fromu, tag_vpr_send, tag_vpr_send_app, tag_resource:tag[data].
+
+(* Constants needed *)
+const uri_req:bitstring.    (* URI of the request *)
+const g: G.                 (* Generator for the g^x *)
+
+(* One-Way Functions *)
+fun hash_pk(PublicKey): bitstring.      (* Hash of PublicKey *)
+fun hash_fork(bitstring): SymmetricKey. (* Hash of bitstring to obtain a SymmetricKey*)
+fun hash(bitstring): bitstring.         (* Hash of bitstring*)
+fun pk(SecretKey):PublicKey.            (* Key derivation function *)
+
+(* Functions *)
+
+(* Exponent *)
 fun exp(G, exponent): G.
 equation forall x: exponent, y: exponent; exp(exp(g, x), y) = exp(exp(g, y), x).
 
-const uri_req:bitstring.
-const usr:bitstring.
+(* Symmetric Encryption *)
+fun senc(bitstring, SymmetricKey):bitstring.
+reduc forall msg:bitstring,symk:SymmetricKey; sdec(senc(msg,symk),symk)=msg.
 
-type tag.
-type ktag.
+(* Asymmetric Encryption *)
+fun aenc(bitstring, PublicKey):bitstring.
+reduc forall msg:bitstring,sk:SecretKey; adec(aenc(msg,pk(sk)),sk)=msg.
 
-const tag1, tag2, tag2_bis, tag3, tag4, tag5, tag6, tag7, tag8, tag9, tag10, tag11, tag12:tag [data].
-const msg1, msg2, msg2_bis, msg3, msg4, msg5, msg6, msg7, msg8, msg9, msg10, msg11, msg12:tag [data].
-const KEXDHINIT, KEXDHREPLY, KEXDHINITSERVER, KEXDHREPLYSERVER: tag [data].
-const keyEncStoC, keyEncCtoS, keyEncAtoC, keyEncCtoA: ktag [data].
-const keyEncStoCTemp, keyEncCtoSTemp, keyEncAtoCTemp, keyEncCtoATemp: ktag [data].
-const symk0, symk1, symk2, symk3, symk4, symk5, symk6, symk7, symk8, symk9:ktag[data].
-const dec_vpr_msg, dec_vpr_2_msg, vp_msg, vp_2_msg: tag[data].
-const sig_gsu, sig_gsa, sig_gsav, sig_gsac:  ktag [data].
-const gsu, gsa, gsav, gsac:  ktag [data].
+(* Classical Digital Signature *)
+fun sig(bitstring, SecretKey):bitstring.
+reduc forall msg:bitstring,sk:SecretKey; check(msg,sig(msg,sk),pk(sk))=true.
 
-(* START hash *)
-fun hash_fork(bitstring): SymmetricKey.
-fun hash(bitstring): bitstring.
-(* End hash *)
+(* Digital Signature of a Symmetric Key *)
+fun sig_hash_k(SymmetricKey, SecretKey):bitstring.
+reduc forall msg:SymmetricKey,sk:SecretKey; check_hash_k(msg,sig_hash_k(msg,sk),pk(sk))=true.
 
-(* START symmetric encryption *)
-fun enc(bitstring(*the message*), SymmetricKey):bitstring (*symmetric encrypt input msg*).
-reduc forall msg:bitstring,symk:SymmetricKey; dec(enc(msg,symk),symk)=msg (*symmetric decrypt*).
-
-(* START asymmetric encryption *)
-fun aenc(bitstring(*the message*), PublicKey):bitstring (*asymmetric encrypt input msg*).
-reduc forall msg:bitstring,sk:SecretKey; adec(aenc(msg,pk(sk)),sk)=msg (*asymmetric decrypt*).
-(* END Asymmetric encryption *)
-
-(* START digital signature *)
-fun sig(bitstring(*the message*), SecretKey):bitstring(*the signature value*).
-reduc forall msg:bitstring,sk:SecretKey; check(msg,sig(msg,sk),pk(sk))=true (*check(msg,sigVal,pk)*).
-(* END digital signature *)
-
-(*DEFS*)
-fun ch(bitstring): channel.
-fun chSymK(SymmetricKey): channel.
+(* Channel for the defense *)
+fun ch(bitstring): channel.         (* Messages channel *)
+fun chSymK(SymmetricKey): channel.  (* SymmetricKey channel *)
 
 
-(* SECRECY *)
-free vp_fromProver: bitstring [private].
-free resource_fromVerifier: bitstring [private].
-free resource_fromApp: bitstring [private].
+(* Secrecy *)
+free vp_fromProver: bitstring [private].            (* VP Released by the Prover *)
+free resource_fromVerifier: bitstring [private].    (* Resource released by the Verifier *)
+free resource_fromApp: bitstring [private].         (* Resource released by the App *)
 
-
-(* AUTHENTICATION *)
-
-event auth_AppCompletesProtocol(bitstring,bitstring,bitstring, bitstring,bitstring, bitstring, bitstring, bitstring, bitstring,bitstring).
-event auth_UserCompletesProtocol(bitstring,bitstring,bitstring,bitstring).
-event auth_VerifierCompletesProtocol(bitstring,bitstring,bitstring,bitstring, bitstring,bitstring).
+(* Authentication *)
+event auth_AppCompletesProtocol(bitstring,bitstring,bitstring,bitstring,bitstring, bitstring,bitstring, bitstring, bitstring, bitstring, bitstring,bitstring).
+event auth_UserCompletesProtocol(bitstring,bitstring,bitstring, bitstring, bitstring).
+event auth_VerifierCompletesProtocol(bitstring,bitstring,bitstring,bitstring,bitstring, bitstring,bitstring).
 
 (* App -> User *)
-event auth_AppSendsLastMessageToUser(bitstring,bitstring,bitstring, bitstring, bitstring, bitstring, bitstring).
-event verifierInConeOfUser(bitstring,bitstring,bitstring,bitstring).
+event auth_AppSendsLastMessageToUser(bitstring, bitstring, bitstring,bitstring,bitstring, bitstring, bitstring, bitstring, bitstring).
+event verifierInConeOfUser(bitstring, bitstring,bitstring,bitstring,bitstring).
 
 (* User -> App *)
-event auth_UserSendsLastMessageToApp(bitstring,bitstring, bitstring,bitstring).
+event auth_UserSendsLastMessageToApp(bitstring,bitstring, bitstring, bitstring,bitstring).
 
 (* Verifier -> App *)
-event auth_VerifierSendsLastMessageToApp(bitstring,bitstring,bitstring,bitstring,bitstring, bitstring).
+event auth_VerifierSendsLastMessageToApp(bitstring,bitstring,bitstring,bitstring,bitstring,bitstring, bitstring).
 
 (* App -> Verifier *)
-event auth_AppSendsLastMessageToVerifier(bitstring, bitstring, bitstring, bitstring,bitstring,bitstring,bitstring,bitstring,bitstring).
-event auth_AppCompletesProtocolWithUser(bitstring, bitstring,bitstring, bitstring, bitstring,bitstring,bitstring, bitstring).
+event auth_AppSendsLastMessageToVerifier(bitstring, bitstring, bitstring, bitstring, bitstring,bitstring,bitstring,bitstring,bitstring,bitstring).
 
-
-
+event reach.
 (* --------------------------------------------------------------------------------------------------------- *)
 (* End Definitions *)
 (* Start Agent Macros *)
 (* --------------------------------------------------------------------------------------------------------- *)
 
-(* Definition for the attacker *)
-free sk_E:SecretKey.
-free exp_E:exponent.
-free e:bitstring.
-free euri:bitstring.
-
-let user(talksOnlyToHonest:bool, c:channel, u:bitstring, exp_u:exponent, sku:SecretKey, a:bitstring, pka:PublicKey, exp_a:G, v:bitstring, pkv:PublicKey, exp_v:G, vc:bitstring, uri:bitstring) =
+let user(talksOnlyToHonest:bool,  c_u2a:channel, DID_u:bitstring, u:exponent, sku:SecretKey, DID_a:bitstring, pka:PublicKey, g2a:G, DID_v:bitstring, pkv:PublicKey,  g2v:G, vc:bitstring, uri_req:bitstring) =
+    (* Message H1 User -> App *)
+    (* h1 = g^su, sig(g^su, sku) *)
     
-    (* Message 1 User -> App *)
     new su: exponent;
-    let g_su = exp(g, su) in
-    let K0 = exp(exp_a, su) in
-    let h0 = hash_fork(((g_su, exp_a, K0),keyEncCtoSTemp)) in
-    new symk_0:SymmetricKey;
-    let diddoc_su_signed = (g_su, sig(hash((sig_gsu, pka, g_su)),sku)) in
-    let m_1:bitstring = (KEXDHINIT, aenc((gsu, g_su), pka), enc((symk0, symk_0), h0), enc(diddoc_su_signed, symk_0)) in
-    out(c, (msg1, m_1));
+    let g2su = exp(g, su) in
+    let g2a2su = exp(g2a, su) in
+    let hash_g2a2su = hash_fork((g2su, g2a, g2a2su)) in
+    let k_g2a2su = hash_fork((g2a2su, hash_g2a2su, tag_k_g2a2su)) in
+    new k5:SymmetricKey;
+    let h1 = (g2su, sig(hash((tag_sig_g2su, pka, g2su)),sku)) in
+    let H1 = (tag_h1, aenc((tag_g2su, g2su), pka), senc((tag_k5, k5), k_g2a2su), senc(h1, k5)) in
+    out(c_u2a, (tag_H1, H1));
 
+    (* Message H2 App -> User *)
+    (* h2 = g^sa, sig(g^sa, ska) *)
+    in(c_u2a, (=tag_H2, H2:bitstring));
+    let (=tag_h2, enc_g2sa: bitstring, enc_k6: bitstring, enc_h2:bitstring) = H2 in
+    let (=tag_g2sa, g2sa:G) = adec(enc_g2sa, sku) in
+    let g2sa2su = exp(g2sa, su) in
+    let hash_g2sa2su = hash_fork((g2su, g2sa, g2sa2su)) in
+    let k_g2sa2su = hash_fork((g2sa2su, hash_g2sa2su, tag_k_g2su2sa)) in (* The tag used tag_k_g2su2sa is reverted with respect to the construction because otherwise it will not work *)
+    let (=tag_k6, k6:SymmetricKey) = sdec(enc_k6, k_g2sa2su) in
+    let (g2sa':G, sig_g2sa:bitstring) = sdec(enc_h2, k6) in 
+    if check(hash((tag_sig_g2sa, pk(sku), g2sa)), sig_g2sa, pka) then
 
-    (* Message 2 App -> User *)
-    in(c, (=msg2, m_2:bitstring));
-    let (=KEXDHREPLY, g_sa_enc: bitstring, symk_1_enc: bitstring, diddoc_sa_signed_enc:bitstring) = m_2 in
-    let (=gsa, g_sa:G) = adec(g_sa_enc, sku) in
-    let K = exp(g_sa, su) in
-    let h = hash_fork(((g_su, g_sa, K), keyEncStoCTemp)) in
-    let (=symk1, symk_1:SymmetricKey) = dec(symk_1_enc, h) in
-    let (g_sa':G, g_sa_signed:bitstring) = dec(diddoc_sa_signed_enc, symk_1) in
-    if check(hash((sig_gsa, pk(sku), g_sa)), g_sa_signed , pka) then
-
-    (* We can now define the shared secret *)
-    let symk_ua_enc = hash_fork((K, h, keyEncCtoS)) in
-    let symk_ua_dec = hash_fork((K, h, keyEncStoC)) in
+    (* Message H3 User -> App *)
+    (* h3 = ack *)
+    new k7: SymmetricKey;
+    new h3:bitstring;
+    let enc_k7 = senc((tag_k7, k7), k_g2sa2su) in
+    let H3 = (tag_h3, senc(h3, k7)) in
+    out(c_u2a,(tag_H3, H3));
     
-
-    (* Message 7 App -> User *)
+    (* Message 6 App -> User *)
     (* This is the VPR sent by the Verifier to the App, and then signed by the App for the User *)
-    in(c, (=msg7, m_7:bitstring));
-    let (symk6_enc:bitstring, m7_enc:bitstring) = m_7 in
-    let (=symk6, symk_6:SymmetricKey) = dec(symk6_enc, symk_ua_dec) in
-    let (=tag7, n_r:bitstring,  v':bitstring, vpr_signed:bitstring) = dec(m7_enc, symk_6)  in
-    if (v = v') then
-    let (=dec_vpr_2_msg, vpr_rec:bitstring, sig_vpr_2:bitstring) = vpr_signed in
+    in(c_u2a, (=tag_M6, M6:bitstring));
+    let (=tag_m6, enc_k8:bitstring, enc_m6:bitstring) = M6 in
+    let (=tag_k8, k8:SymmetricKey) = sdec(enc_k8, k_g2sa2su) in
+    let (=tag_sig_vpr_2, vpr_2:bitstring, sig_vpr_2:bitstring) = sdec(enc_m6, k8)  in
+    let (=tag_pack_vpr_2, m5':bitstring, n_r':bitstring) = vpr_2 in
+    let (=tag_vpr_send_app, rule':bitstring, n_c':bitstring) = m5' in
+    let (=tag_vpr, DID_i':bitstring, DID_v':bitstring, DID_u':bitstring, DID_a':bitstring, uri':bitstring) = rule' in
     (* Check if the signature applied by the App is genuine *)
-    if (check(vpr_rec, sig_vpr_2, pka)) then
-
-    let (=dec_vpr_msg, v'':bitstring, rule':bitstring, n_c:bitstring) = vpr_rec in
-    let (u':bitstring, i':bitstring, uri':bitstring, a':bitstring) = rule' in
+    if (check(vpr_2, sig_vpr_2, pka)) then
     (* Check that these are field we expect to sign  *)
-    if ((u', uri', a', v'') = (u, uri, a, v)) then
-    
-    (* Message 8 User -> App *)
-    (* Produce the VP as response to the VPR *)
-    let vp = (vp_msg, (vpr_rec, vc), sig((vpr_rec, vc), sku)) in
-    new symk_7:SymmetricKey;
-    let symk7_enc = enc((symk7, symk_7), symk_ua_enc) in
-    let m_8 = (symk7_enc, enc((tag8, n_r, vp), symk_ua_enc)) in
+    if ((DID_v', DID_u', DID_a', uri') = (DID_v, DID_u, DID_a, uri_req)) then  (*Who knows, maybe server is starting behaving maliciously *)
 
-    event auth_UserSendsLastMessageToApp(m_1, m_2, m_7,m_8);
-    out(c, (msg8, m_8));
+    
+    (* Message 7 User -> App *)
+    (* Produce the VP as response to the VPR *)
+    let vp = (tag_vp, n_r', (tag_vpr_fromu, rule', n_c'), vc) in
+    let m7 = (tag_sig_vp, vp, sig(vp, sku)) in
+    new k9:SymmetricKey;
+    let M7 = (tag_m7, senc((tag_k9, k9), k_g2sa2su), senc(m7, k9)) in
+    
+    event auth_UserSendsLastMessageToApp(H1, H2, H3, M6, M7);
+    out(c_u2a, (tag_M7, M7));
     
     if talksOnlyToHonest then
-        event auth_UserCompletesProtocol(m_1, m_2 , m_7, m_8)|
+        event auth_UserCompletesProtocol(H1, H2, H3, M6, M7)|
         out(ch(vp), vp_fromProver);
-
+    
     0.
 
-let app(talksOnlyToHonest:bool, c:channel,c2:channel, a:bitstring, exp_a:exponent, ska:SecretKey,  u:bitstring, pku:PublicKey, exp_u:G, v:bitstring, pkv:PublicKey, exp_v:G, i:bitstring, pki:PublicKey, uri:bitstring) =
+let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:bitstring, a:exponent, ska:SecretKey,  DID_u:bitstring, pku:PublicKey, g2u:G, DID_v:bitstring, pkv:PublicKey, g2v:G, DID_i:bitstring, pki:PublicKey ,uri:bitstring) =
 
-   
-    (* Message 1 User -> App *)
-    (* Send the communication request *)
-    in(c, (=msg1, m_1:bitstring));
-    let (=KEXDHINIT, g_su_enc: bitstring, symk0_enc:bitstring, g_su_signed_enc:bitstring) = m_1 in
-    let (=gsu, g_su:G) = adec(g_su_enc, ska) in
-    let K_temp = exp(g_su, exp_a) in
-    let h_temp = hash_fork(((g_su, exp(g, exp_a), K_temp), keyEncCtoSTemp)) in
-    let (=symk0, symk_0:SymmetricKey) = dec(symk0_enc, h_temp) in
-    let (g_su':G, g_su_sign:bitstring) = dec(g_su_signed_enc, symk_0) in
-    if check(hash((sig_gsu, pk(ska), g_su)), g_su_sign, pku) then
-    
-    (* Message 2 *)
-    (* Send the response *)
-    new sa: exponent;
-    let g_sa = exp(g, sa) in
-    let K = exp(g_su, sa) in
-    let h = hash_fork(((g_su, g_sa, K), keyEncStoCTemp)) in
-    new symk_1:SymmetricKey;
-    let diddoc_sa_enc = (g_sa, sig(hash((sig_gsa, pku, g_sa)), ska)) in
-    let m_2:bitstring = (KEXDHREPLY, aenc((gsa, g_sa), pku), enc((symk1, symk_1), h), enc(diddoc_sa_enc, symk_1)) in 
-    out(c, (msg2, m_2));
-    
-    let symk_ua_enc = hash_fork((K, h, keyEncStoC)) in
-    let symk_ua_dec = hash_fork((K, h, keyEncCtoS)) in
+    (* Message 1 App -> CSS *)
+    (* m1 = (g^sav, sig(g^sav, ska))*)
+    new sav: exponent;
+    let g2sav = exp(g, sav) in
+    let g2v2sav = exp(g2v, sav) in
+    let hash_g2v2sav = hash_fork((g2v, g2sav, g2v2sav)) in
+    let k_g2v2sav = hash_fork((g2v2sav, hash_g2v2sav, tag_k_g2v2sav)) in
+    new k0:SymmetricKey;
+    let m1 = (g2sav, sig(hash((tag_sig_g2sav, pkv, g2sav)), ska)) in
+    let M1 = (tag_m1, aenc((tag_g2sav, g2sav), pkv), senc((tag_k0, k0), k_g2v2sav), senc(m1, k0)) in
+    out(c_a2v, (tag_M1,M1));
 
+    (* Message 2 CSS -> App *)
+    (* m2 = (g^sc, sig(g^sc, skv))*)
+    in(c_a2v, (=tag_M2, M2:bitstring));
+    let (=tag_m2, enc_g2sc: bitstring, enc_k1: bitstring, enc_m2:bitstring) = M2 in
+    let(=tag_g2sc, g2sc:G) = adec(enc_g2sc, ska) in
+    let g2sc2sav = exp(g2sc, sav) in
+    let hash_g2sc2sav = hash_fork((g2sc, g2sav, g2sc2sav)) in 
+    let k_g2sc2sav = hash_fork((g2sc2sav, hash_g2sc2sav, tag_k_g2sav2sc)) in (* The tag used tag_k_g2sav2sc is reverted with respect to the construction because otherwise it will not work *)
+    let (=tag_k1, k1:SymmetricKey) = sdec(enc_k1, k_g2sc2sav) in
+    let (g2sc':G, sig_g2sc:bitstring) = sdec(enc_m2, k1) in
+    if check(hash((tag_sig_g2sc, pk(ska), g2sc)), sig_g2sc, pkv) then
 
     (* Message 3 App -> CSS *)
-    (* Send the communication request *)
-    new sav: exponent;
-    let g_sav = exp(g, sav) in
-    let KC_temp = exp(exp_v, sav) in
-    let hc_temp = hash_fork(((exp_v, g_sav, KC_temp), keyEncAtoCTemp)) in
-    new symk_2:SymmetricKey;
-    let diddoc_sav_signed = (g_sav, sig(hash((sig_gsav, pkv, g_sav)), ska)) in
-    let m_3:bitstring = (KEXDHINITSERVER, aenc((gsav, g_sav), pkv), enc((symk2, symk_2), hc_temp), enc(diddoc_sav_signed, symk_2)) in
-    out(c2, (msg3, m_3));
+    (* Send ack to the CSS *)
+    new k2: SymmetricKey;
+    new m3:bitstring;
+    let M3 = (tag_m3, senc((tag_k2, k2), k_g2sc2sav), senc(m3, k2)) in
+    out(c_a2v,(tag_M3, M3));
 
-    (* Message 4 CSS -> App *)
-    (* Send the response *)
-    in(c2, (=msg4, m_4:bitstring));
-    let (=KEXDHREPLYSERVER, g_sc_enc: bitstring, symk3_enc: bitstring, g_sc_signed_enc:bitstring) = m_4 in
-    let(=gsac, g_sc:G) = adec(g_sc_enc, ska) in
-    let KC = exp(g_sc, sav) in
-    let hc = hash_fork(((g_sc, g_sav, KC), keyEncCtoATemp)) in
-    let (=symk3, symk_3:SymmetricKey) = dec(symk3_enc, hc) in
-    let (g_sc':G, g_sc_sisn:bitstring) = dec(g_sc_signed_enc, symk_3) in
-    if check(hash((sig_gsac, pk(ska), g_sc)), g_sc_sisn, pkv) then
+    (* Message 4 App -> CSS *)
+    (* m4 = (i, v, u, uri, a) *)
+    new k3: SymmetricKey;
+    let enc_k3 = senc((tag_k3, k3), k_g2sc2sav) in
+    let m4 = (DID_i, DID_v, DID_u, DID_a, uri) in
+    let M4 = (tag_m4, enc_k3, senc(m4, k3)) in
+    out(c_a2v,(tag_M4, M4));
 
-    let symk_av_enc = hash_fork((KC, hc, keyEncAtoC)) in
-    let symk_av_dec = hash_fork((KC, hc, keyEncCtoA)) in
+    (* Message 5 CSS -> App *)
+    (* Receive m5 = (v, rule, n_v) from the CSS *)
+    in(c_a2v, (=tag_M5, M5:bitstring));
+    let (=tag_m5, enc_k4:bitstring, enc_m5:bitstring) = M5 in
+    let (=tag_k4, k4:SymmetricKey) = sdec(enc_k4, k_g2sc2sav) in
+    let (=tag_vpr_send, rule':bitstring, n_c':bitstring) = sdec(enc_m5, k4)  in
+    let (=tag_vpr, DID_i':bitstring, DID_v':bitstring, DID_u':bitstring, DID_a':bitstring, uri':bitstring) = rule' in
+    if ((DID_i', DID_v', DID_u', DID_a', uri') = (DID_i, DID_v, DID_u, DID_a, uri)) then  (*Who knows, maybe server is starting behaving maliciously *)
+
+    
+    (* Message H1 User -> App *)
+    (* h1 = g^su, sig(g^su, sku) *)
+    in(c_u2a, (=tag_H1, H1:bitstring));
+    let (=tag_h1, enc_g2su: bitstring, enc_k5:bitstring, enc_h1:bitstring) = H1 in
+    let (=tag_g2su, g2su:G) = adec(enc_g2su, ska) in
+    let g2su2a = exp(g2su, a) in
+    let hash_g2su2a = hash_fork((g2su, exp(g, a), g2su2a)) in
+    let k_g2su2a = hash_fork((g2su2a, hash_g2su2a, tag_k_g2a2su)) in (* The tag used tag_k_g2a2su is reverted with respect to the construction because otherwise it will not work *)
+    let (=tag_k5, k5:SymmetricKey) = sdec(enc_k5, k_g2su2a) in
+    let (g2su':G, sig_g2su:bitstring) = sdec(enc_h1, k5) in
+    if check(hash((tag_sig_g2su, pk(ska), g2su)), sig_g2su, pku) then
+    
+
+    (* Message H2 App -> User *)
+    (* h2 = g^sa, sig(g^sa, ska) *)
+    new sa: exponent;
+    let g2sa = exp(g, sa) in
+    let g2su2sa = exp(g2su, sa) in
+    let hash_g2su2sa = hash_fork((g2su, g2sa, g2su2sa)) in
+    let k_g2su2sa = hash_fork((g2su2sa, hash_g2su2sa, tag_k_g2su2sa)) in
+    new k6:SymmetricKey;
+    let h2 = (g2sa, sig(hash((tag_sig_g2sa, pku, g2sa)), ska)) in
+    let H2 = (tag_h2, aenc((tag_g2sa, g2sa), pku), senc((tag_k6, k6), k_g2su2sa), senc(h2, k6)) in 
+    out(c_u2a, (tag_H2, H2));
+
+    (* Message H3 User -> App *)
+    (* Receive the ack, no need to check anything on this *)
+    in(c_u2a, (=tag_H3, H3:bitstring));
 
 
-    (* Message 5 App -> CSS *)
-    (* Send (i, v, u, uri, a) to the CSS *)
-    new symk_4: SymmetricKey;
-    let symk4_enc = enc((symk4, symk_4), symk_av_enc) in
-    let m_5 = (symk4_enc, enc((tag5, (i, v, u, uri, a)), symk_4)) in
-    out(c2,(msg5, m_5));
-
-    (* Message 6 CSS -> App *)
-    (* Receive the VPR = (v, rule, n_v) from the CSS *)
-    in(c2, (=msg6, m_6:bitstring));
-    let (symk5_enc:bitstring, m6_enc:bitstring) = m_6 in
-    let (=symk5, symk_5:SymmetricKey) = dec(symk5_enc, symk_av_dec) in
-    let (=tag6, dec_vpr:bitstring) = dec(m6_enc, symk_5)  in
-    let (=dec_vpr_msg, v':bitstring, rule':bitstring, n_c':bitstring) = dec_vpr in
-    let(u':bitstring, i':bitstring, uri':bitstring, a':bitstring) = rule' in
-    if ((v', u', i', uri', a') = (v, u, i, uri, a)) then  (*Who knows, maybe server is starting behaving maliciously *)
-
-    (* Message 7 App -> User *)
+    (* Message 6 App -> User *)
     (* Send the VPR^2, which is the VPR signed with secret key of app + nonce *)
     new n_r:bitstring;
-    let vpr_signed = (dec_vpr_2_msg, dec_vpr, sig(dec_vpr, ska)) in
-    new symk_6:SymmetricKey;
-    let symk6_enc = enc((symk6, symk_6), symk_ua_enc) in
-    let m_7 = (symk6_enc, enc((tag7, n_r, v, vpr_signed), symk_6)) in
-    event auth_AppSendsLastMessageToUser(m_1,m_2,m_3, m_4, m_5, m_6, m_7);
-    out(c, (msg7, m_7));
-
-    (* Message 8 User -> App *)
-    in(c, (=msg8, m_8:bitstring));
-    let (symk7_enc:bitstring, m8_enc:bitstring) = m_8 in
-    let (=symk7, symk_7:SymmetricKey) = dec(symk7_enc, symk_ua_dec) in
-    let (=tag8, n_r':bitstring, vp_signed:bitstring) = dec(m8_enc, symk_7) in
-    if n_r = n_r' then
-    let (=vp_msg, vp:bitstring, sign_on_vp:bitstring) = vp_signed in
-    if (check(vp, sign_on_vp, pku)) then
-    let vp_2_prev:bitstring = (vp_2_msg, vp_signed, sig(vp_signed, ska)) in
-
-    (* Message 9 App -> CSS *)
-    (* Send the VP^2 to the CSS, which is the VP signed with secret key of app *)
-    new symk_8:SymmetricKey;
-    let symk8_enc = enc((symk8, symk_8), symk_av_enc) in
-    let m_9 = (symk8_enc, enc((tag9,vp_2_prev),symk_8)) in
-    event auth_AppSendsLastMessageToVerifier(m_1, m_2, m_3,m_4,m_5,m_6, m_7, m_8,m_9);
-    out(c2, (msg9, m_9));
-
+    let vpr_2 = (tag_pack_vpr_2, (tag_vpr_send_app, rule', n_c'), n_r) in
+    let m6 = (tag_sig_vpr_2, vpr_2, sig(vpr_2, ska)) in
+    new k8:SymmetricKey;
+    let M6 = (tag_m6, senc((tag_k8, k8), k_g2su2sa), senc(m6, k8)) in
+    event auth_AppSendsLastMessageToUser(M1, M2, M3, M4, M5, H1, H2, H3, M6);
+    out(c_u2a, (tag_M6, M6));
+    (* Here we are able to reach the process, line 286. After this we are not able to reach*)
     
+    
+    (* Message 7 User -> App *)
+    in(c_u2a, (=tag_M7, M7:bitstring));
+    let (=tag_m7, enc_k9:bitstring, enc_m7:bitstring) = M7 in
+    let (=tag_k9, k9:SymmetricKey) = sdec(enc_k9, k_g2su2sa) in
+    let (=tag_sig_vp, vp:bitstring, sig_vp:bitstring) = sdec(enc_m7, k9) in
+    let (=tag_vp, n_r':bitstring, vpr':bitstring, vc':bitstring) = vp in
+    if n_r = n_r'  then
+    if (check(vp, sig_vp, pku)) then
+
+    (* Message 8 App -> CSS *)
+    new k10:SymmetricKey;
+    let m8 = (tag_sig_vp_2, (tag_sig_vp, vp, sig_vp), sig((tag_sig_vp, vp, sig_vp), ska)) in
+    let M8 = (tag_m8, senc((tag_k10, k10), k_g2sc2sav), senc(m8, k10)) in
+    out(c_a2v, (tag_M8, M8));
+
     (* Message 10 CSS -> App *)
-    in(c2, (=msg10, m_10:bitstring));
-    let (symk9_enc:bitstring, m10_enc:bitstring) = m_10 in
-    let (=symk9, symk_9:SymmetricKey)= dec(symk9_enc, symk_av_dec) in
-    let (=tag10, res:bitstring) = dec(m10_enc, symk_9) in
-
-    if (talksOnlyToHonest) then
-        event auth_AppCompletesProtocol(m_1,m_2, m_3,m_4,m_5,m_6,m_7, m_8, m_9,m_10)|
-        out(ch(res), resource_fromApp);
-    
-    0.
-
-let verifier(talksOnlyToHonest:bool, c:channel, v:bitstring, exp_v:exponent, skv:SecretKey, u:bitstring, pku:PublicKey, exp_u:G, a:bitstring, pka:PublicKey, exp_a:G, i:bitstring, pki:PublicKey,  uri:bitstring) =
-    
-    (* Message 3 App -> CSS *)
-    in(c, (=msg3, m_3:bitstring));
-    let (=KEXDHINITSERVER, g_sav_enc: bitstring, symk2_enc:bitstring, g_sav_enc_signed:bitstring) = m_3 in
-    let (=gsav, g_sav:G) = adec(g_sav_enc, skv) in
-    let K0 = exp(g_sav, exp_v) in
-    let h = hash_fork(((exp(g, exp_v), g_sav, K0), keyEncAtoCTemp)) in
-    let (=symk2, symk_2:SymmetricKey) = dec(symk2_enc, h) in
-    let (g_sav':G, sign_g_sav:bitstring) = dec(g_sav_enc_signed, symk_2) in
-    if check(hash((sig_gsav, pk(skv), g_sav)), sign_g_sav, pka) then
-    
-    (* Message 4 CSS -> App *)
-    new sc: exponent;
-    let g_sc = exp(g, sc) in
-    let K = exp(g_sav, sc) in
-    let h = hash_fork(((g_sc, g_sav, K), keyEncCtoATemp)) in
-    new symk_k3:SymmetricKey;
-    let diddoc_sc_signed = (g_sc,sig(hash((sig_gsac, pka, g_sc)), skv)) in
-    let m_4:bitstring = (KEXDHREPLYSERVER, aenc((gsac, g_sc), pka), enc((symk3, symk_k3), h), enc(diddoc_sc_signed, symk_k3)) in 
-    out(c, (msg4, m_4));
-
-    let symk_av_enc = hash_fork((K, h, keyEncCtoA)) in
-    let symk_av_dec = hash_fork((K, h, keyEncAtoC)) in
-
-    (* Message 5 App -> CSS *)
-    (* Send the VPR Request, so send the information about (i, v, u, uri, a) *)
-    in(c, (=msg5, m_5:bitstring));
-    let (symk4_enc:bitstring, m5_enc:bitstring) = m_5 in
-    let (=symk4, symk_4:SymmetricKey) = dec(symk4_enc, symk_av_dec) in
-    let (=tag5, (i':bitstring, v':bitstring, u':bitstring, uri':bitstring, a':bitstring)) =  dec(m5_enc,symk_4) in
-    if (i', v', u', uri', a') = (i, v, u, uri, a) then
-
-    (* Message 6 CSS -> App *)
-    (* Generate the VPR for the User, and send it to the App *)
-    new n_c:bitstring;
-    let rule = (u, i, uri, a) in
-    let vpr_send_prev = (dec_vpr_msg, v, rule, n_c)  in
-    new symk_5:SymmetricKey;
-    let enc_symk5 = enc((symk5, symk_5),symk_av_enc) in
-    let m_6 = (enc_symk5, enc((tag6, vpr_send_prev), symk_5))  in
-    event verifierInConeOfUser(m_3,m_4,m_5,m_6);
-    out(c, (msg6, m_6));
-
-    (* Message 9 App -> CSS *)
-    (* Receive the VP^2 and checks for the signature applied *)
-    in(c, (=msg9, m_9:bitstring));
-    let (symk8_enc:bitstring, m9_enc:bitstring) = m_9 in
-    let (=symk8, symk_8:SymmetricKey) = dec(symk8_enc, symk_av_dec) in
-    let (=tag9, vp_signed_2:bitstring) = dec(m9_enc, symk_8) in
-    let (=vp_2_msg, vp_signed:bitstring, vp_sign_2:bitstring) = vp_signed_2 in
-    if (check(vp_signed, vp_sign_2, pka)) then
-
-
-    let (=vp_msg, vp:bitstring, sign_vp:bitstring) = vp_signed in
-    if check(vp, sign_vp, pku) then
-    (* VP = (VPR, VC) *)
-    let (vpr_rec:bitstring, vc_rec_signed:bitstring) = vp in
-
-    let (vc_rec:bitstring, sign_vc_rec:bitstring) = vc_rec_signed in
-    if check(vc_rec, sign_vc_rec, pki) then
-
-    let (iss'':bitstring, u'':bitstring) = vc_rec in
-    if (iss'', u'') = (i, u) then
-    let (=dec_vpr_msg, v'':bitstring, rule'':bitstring, n_c'':bitstring) = vpr_rec in
-    if (v'', rule'', n_c'') = (v, rule, n_c) then
-
-    let (u''':bitstring, i''':bitstring, uri''':bitstring, a''':bitstring) = rule'' in
-    if (u''', i''', uri''', a''') = (u, i, uri, a) then
-    
-    (* missing check on issuer*)
-    new resource:bitstring;
-    new symk_9:SymmetricKey;
-    let symk9_enc= enc((symk9, symk_9), symk_av_enc) in
-    let m_10 = (symk9_enc, enc((tag10, resource),symk_9))  in
-    event auth_VerifierSendsLastMessageToApp(m_3,m_4,m_5,m_6, m_9, m_10);
-    out(c, (msg10, m_10));
+    in(c_a2v, (=tag_M9, M9:bitstring));
+    let (=tag_m9, enc_k11:bitstring, enc_m10:bitstring) = M9 in
+    let (=tag_k11, k11:SymmetricKey) = sdec(enc_k11, k_g2sc2sav) in
+    let (=tag_resource, resource:bitstring) = sdec(enc_m10, k11) in
 
     if talksOnlyToHonest then
-        event auth_VerifierCompletesProtocol(m_3,m_4,m_5,m_6,m_9,m_10)|
-        out(ch(resource), resource_fromVerifier);
-    
+        event auth_AppCompletesProtocol(M1, M2, M3, M4, M5, H1, H2, H3, M6, M7, M8, M9)|
+        out(ch(resource), resource_fromApp);
     0.
-(* --------------------------------------------------------------------------------------------------------- *)
-(* End Agent Macros *)
-(* Start Open Network *)
-(* --------------------------------------------------------------------------------------------------------- *)
 
-(* --------------------------------------------------------------------------------------------------------- *)
-(* End Open Network *)
-(* Start Assumptions *)
-(* --------------------------------------------------------------------------------------------------------- *)
+let verifier(talksOnlyToHonest:bool,  c_a2v:channel, DID_v:bitstring, v:exponent, skv:SecretKey, DID_u:bitstring, pku:PublicKey, g2u:G, DID_a:bitstring, pka:PublicKey,  g2a:G, DID_i:bitstring, pki:PublicKey, uri_req:bitstring) =
+               
+    (* Message 1 App -> CSS *)
+    (* m1 = (g^sav, sig(g^sav, ska)) *)
+    in(c_a2v, (=tag_M1, M1:bitstring));
+    let (=tag_m1, enc_g2sav: bitstring, enc_k0:bitstring, enc_m1:bitstring) = M1 in
+    let (=tag_g2sav, g2sav:G) = adec(enc_g2sav, skv) in
+    let g2sav2v = exp(g2sav, v) in
+    let hash_g2sav2v = hash_fork((exp(g, v), g2sav, g2sav2v)) in
+    let k_g2sav2v = hash_fork((g2sav2v, hash_g2sav2v, tag_k_g2v2sav)) in (* The tag used tag_k_g2v2sav is reverted with respect to the construction because otherwise it will not work *)
+    let (=tag_k0, k0:SymmetricKey) = sdec(enc_k0, k_g2sav2v) in
+    let (g2sav':G, sig_g2sav:bitstring) = sdec(enc_m1, k0) in
+    if check(hash((tag_sig_g2sav, pk(skv), g2sav)), sig_g2sav, pka) then
+    
+    (* Message 2 CSS -> App *)
+    (* m2 = (g^sc, sig(g^sc, skv))*)
+    new sc: exponent;
+    let g2sc = exp(g, sc) in
+    let g2sav2sc = exp(g2sav, sc) in
+    let hash_g2sav2sc = hash_fork((g2sc, g2sav, g2sav2sc)) in
+    let k_g2sav2sc = hash_fork((g2sav2sc, hash_g2sav2sc, tag_k_g2sav2sc)) in
+    new k1:SymmetricKey;
+    let m2 = (g2sc,sig(hash((tag_sig_g2sc, pka, g2sc)), skv)) in
+    let M2 = (tag_m2, aenc((tag_g2sc, g2sc), pka), senc((tag_k1, k1), k_g2sav2sc), senc(m2, k1)) in 
+    out(c_a2v, (tag_M2, M2));
+
+    (* Message 3 App -> CSS *)
+    (* m3 = ack *)
+    in(c_a2v, (=tag_M3, M3:bitstring));
+
+    (* Message 4 App -> CSS *)
+    (* m4 = (i, v, u, uri, a) *)
+    in(c_a2v, (=tag_M4, M4:bitstring));
+    let (=tag_m4, enc_k3:bitstring, enc_m4:bitstring) = M4 in
+    let (=tag_k3, k3:SymmetricKey) = sdec(enc_k3, k_g2sav2sc) in
+    let (DID_i':bitstring, DID_v':bitstring, DID_u':bitstring, DID_a':bitstring, uri':bitstring) =  sdec(enc_m4,k3) in
+    if (DID_i', DID_v', DID_u', DID_a', uri') = (DID_i, DID_v, DID_u, DID_a, uri_req) then
+    
+    (* Message 5 CSS -> App *)
+    (* m5 = (rule, n_c) *)
+    new n_c:bitstring;
+    let rule = (tag_vpr, DID_i, DID_v, DID_u, DID_a, uri_req) in
+    let m5 = (tag_vpr_send, rule, n_c)  in
+    new k4:SymmetricKey;
+    let enc_k4 = senc((tag_k4, k4),k_g2sav2sc) in
+    let M5 = (tag_m5, enc_k4, senc(m5, k4))  in
+    event verifierInConeOfUser(M1,M2,M3,M4,M5);
+    out(c_a2v, (tag_M5, M5));
+
+    (* Message 8 App -> CSS *)
+    (* Receive the VP^2 and checks for the signature applied *)
+    in(c_a2v, (=tag_M8, M8:bitstring));
+    let (=tag_m8, enc_k10:bitstring, enc_m8:bitstring) = M8 in
+    let (=tag_k10, k10:SymmetricKey) = sdec(enc_k10, k_g2sav2sc) in
+    let (=tag_sig_vp_2, m7':bitstring, sig_m7':bitstring) = sdec(enc_m8, k10) in
+    if (check(m7', sig_m7', pka)) then
+    let (=tag_sig_vp, vp:bitstring, sig_vp:bitstring) =  m7' in
+    if check(vp, sig_vp, pku) then
+    let (=tag_vp, n_r':bitstring, vpr':bitstring, vc':bitstring) = vp in
+    let (=tag_vc, attr':bitstring, sig_attr':bitstring) = vc' in
+    if check(attr', sig_attr', pki) then
+    let (=tag_attr, DID_iss'':bitstring, DID_u'':bitstring) = attr' in
+    if (DID_iss'', DID_u'') = (DID_i, DID_u) then
+    let (=tag_vpr_fromu, rule'':bitstring, n_c'':bitstring) = vpr' in
+    if (n_c'') = (n_c) then
+    let (=tag_vpr, DID_i''':bitstring, DID_v''':bitstring, DID_u''':bitstring, DID_a''':bitstring, uri_req''':bitstring) = rule'' in
+    if ((DID_i, DID_v, DID_u, DID_a, uri_req) = (DID_i''', DID_v''', DID_u''', DID_a''', uri_req''')) then 
+    
+    (* Message 9 - CSS -> App *)
+    (* Message containing the encrypted resource *)
+    new k11: SymmetricKey;
+    new resource: bitstring;
+    let M9 = (tag_m9, senc((tag_k11, k11), k_g2sav2sc), senc(resource, k11)) in
+    event auth_VerifierSendsLastMessageToApp(M1, M2, M3, M4, M5, M8, M9);
+    out(c_a2v, (tag_M9, M9));
+    event reach;
+    if talksOnlyToHonest then
+        event auth_VerifierCompletesProtocol(M1, M2, M3, M4, M5, M8, M9)|
+        out(ch(resource), resource_fromVerifier);
+    0.
 
 (* SECRECY *)
-
-(*query attacker(vp_fromProver). 
+query event(reach).
+query attacker(vp_fromProver). 
 query attacker(resource_fromApp). 
-query attacker(resource_fromVerifier).*)
+query attacker(resource_fromVerifier).
 
-
-query  m_handshakeReq:bitstring, m_handshakeResp:bitstring, m_vpr:bitstring, m_vp:bitstring, m_3:bitstring, m_4:bitstring, m_5:bitstring, m_6:bitstring; 
-    inj-event(auth_UserCompletesProtocol(m_handshakeReq, m_handshakeResp, m_vpr, m_vp))
+query  M1:bitstring, M2:bitstring, M3:bitstring, M4:bitstring, M5:bitstring, H1:bitstring, H2:bitstring,H3:bitstring, M6:bitstring,M7:bitstring, M8:bitstring,M9:bitstring;
+    inj-event(auth_UserCompletesProtocol(H1, H2, H3, M6, M7))
     ==>
-    inj-event(auth_AppSendsLastMessageToUser(m_handshakeReq, m_handshakeResp, m_3, m_4, m_5, m_6, m_vpr))
+    inj-event(auth_AppSendsLastMessageToUser(M1, M2, M3, M4, M5, H1, H2, H3, M6))
     &&
-    inj-event(verifierInConeOfUser(m_3, m_4, m_5, m_6)).
+    inj-event(verifierInConeOfUser(M1, M2, M3, M4, M5)).
 
-
-
-
-query  m_handshakeReq:bitstring, m_handshakeResp:bitstring, m_uri:bitstring, m_rule:bitstring, m_vp:bitstring, m_accesstoken:bitstring,  m_1:bitstring, m_2:bitstring,m_2_bis:bitstring, m_7:bitstring, m_8:bitstring;
-    inj-event(auth_AppCompletesProtocol(m_1, m_2, m_handshakeReq, m_handshakeResp, m_uri, m_rule, m_7, m_8, m_vp, m_accesstoken))
+query  M1:bitstring, M2:bitstring, M3:bitstring, M4:bitstring, M5:bitstring, H1:bitstring, H2:bitstring,H3:bitstring, M6:bitstring,M7:bitstring, M8:bitstring,M9:bitstring;
+    inj-event(auth_AppCompletesProtocol(M1, M2, M3, M4, M5, H1, H2, H3, M6, M7, M8, M9))
     ==>
-    inj-event(auth_VerifierSendsLastMessageToApp(m_handshakeReq, m_handshakeResp, m_uri, m_rule, m_vp, m_accesstoken))
+    inj-event(auth_VerifierSendsLastMessageToApp(M1, M2, M3, M4, M5, M8, M9))
     &&
-    inj-event(auth_UserSendsLastMessageToApp(m_1, m_2, m_7, m_8)). 
+    inj-event(auth_UserSendsLastMessageToApp(H1, H2, H3, M6, M7)). 
 
-query  m_handshakeReq:bitstring, m_handshakeResp:bitstring, m_complete:bitstring, m_handshake_ver:bitstring, m_handshake_resp_ver:bitstring, m_uri:bitstring, m_rule:bitstring, m_vpr:bitstring, m_vp:bitstring, m_accesstoken:bitstring, m_1:bitstring, m_2:bitstring, m_2_bis:bitstring, m_7:bitstring, m_8:bitstring; 
-    inj-event(auth_VerifierCompletesProtocol(m_handshake_ver, m_handshake_resp_ver, m_uri, m_vpr, m_vp, m_accesstoken))
+query  M1:bitstring, M2:bitstring, M3:bitstring, M4:bitstring, M5:bitstring, H1:bitstring, H2:bitstring,H3:bitstring, M6:bitstring,M7:bitstring, M8:bitstring,M9:bitstring;
+    inj-event(auth_VerifierCompletesProtocol(M1, M2, M3, M4, M5, M8, M9))
     ==>
-    inj-event(auth_AppSendsLastMessageToVerifier(m_1, m_2, m_handshake_ver, m_handshake_resp_ver, m_uri, m_vpr, m_7, m_8, m_vp))
+    inj-event(auth_AppSendsLastMessageToVerifier(M1, M2, M3, M4, M5, H1, H2, H3, M6, M8))
     &&
-    inj-event(auth_UserSendsLastMessageToApp(m_1, m_2, m_7, m_8)). 
+    inj-event(auth_UserSendsLastMessageToApp(H1, H2, H3, M6, M7)). 
 
-
-(* --------------------------------------------------------------------------------------------------------- *)
-(* End Assumptions *)
-(* Start Main *)
-(* --------------------------------------------------------------------------------------------------------- *)
-
+(* Define the channels *)
 free c:channel.
-free c2:channel.
+free c_u2a:channel. (* For User - App*)
+free c_a2v:channel. (* For App - Verifier *)
+
+(* Definition for the attacker *)
+free skE:SecretKey.
+free E:exponent.
+free DID_E:bitstring.
+
 process (*use root process for setup *)
 
-    (* create identities *)
-    new u:bitstring;
-    new a:bitstring;
-    new v:bitstring;
-    new i:bitstring;
+    (* Declare identities *)
+    new DID_u:bitstring;
+    new DID_a:bitstring;
+    new DID_v:bitstring;
+    new DID_i:bitstring;
 
-    (*advertise identities*)
-    out(c,u);
-    out(c,a);
-    out(c,v);
-    out(c, i);
+    (* Advertise identities*)
+    out(c, DID_u);
+    out(c, DID_a);
+    out(c, DID_v);
+    out(c, DID_i);
 
-    (*declare secret keys*)
+    (* Declare Secret Keys*)
     new sku:SecretKey;
     new ska:SecretKey;
     new skv:SecretKey;
     new ski:SecretKey;
 
+    (* Declare Exponents *)
+    new u:exponent;
+    new a:exponent;
+    new v:exponent;
+    new i:exponent;
 
-    new exp_u:exponent;
-    new exp_a:exponent;
-    new exp_v:exponent;
-    new exp_i:exponent;
-
-    out(c, exp(g, exp_u));
-    out(c, exp(g, exp_a));
-    out(c, exp(g, exp_v));
-    out(c, exp(g, exp_i));
+    (* Advertise Public Exponent (Generators)*)
+    out(c, exp(g, u));
+    out(c, exp(g, a));
+    out(c, exp(g, v));
+    out(c, exp(g, i));
     
-    (*advertise public keys*)
-    out(c,pk(sku));
-    out(c,pk(ska));
-    out(c,pk(skv));
-    out(c,pk(ski));
+    (* Advertise Public Keys *)
+    out(c, pk(sku));
+    out(c, pk(ska));
+    out(c, pk(skv));
+    out(c, pk(ski));
 
-    let vc = ((i, u), sig((i, u), ski)) in
+    let vc = (tag_vc, (tag_attr, DID_i, DID_u), sig((tag_attr, DID_i, DID_u), ski)) in
 
     (*let agents dance*)
     (
-        !user(true, c, u, exp_u, sku, a, pk(ska), exp(g, exp_a), v, pk(skv), exp(g, exp_v),vc, uri_req) |
-        !user(false, c, u, exp_u, sku, e,pk(sk_E), exp(g, exp_E),v, pk(skv), exp(g, exp_v), vc, uri_req) |
-        !user(false, c, u, exp_u, sku, a, pk(ska), exp(g, exp_a),e, pk(sk_E), exp(g, exp_E), vc, euri) |
-        !user(false, c, u, exp_u, sku, e,pk(sk_E), exp(g, exp_E),e,pk(sk_E), exp(g, exp_E), vc, euri) |
-        !app(true, c, c2, a, exp_a, ska, u, pk(sku), exp(g, exp_u), v, pk(skv), exp(g, exp_v), i, pk(ski), uri_req)  |
-        !app(false, c,c2, a, exp_a, ska, e,pk(sk_E), exp(g, exp_E), v,  pk(skv), exp(g, exp_v), i, pk(ski), uri_req) |
-        !app(false, c, c2, a, exp_a, ska, u, pk(sku), exp(g, exp_u), e,pk(sk_E), exp(g, exp_E), i, pk(ski), euri) |
-        !app(false, c, c2, a, exp_a, ska, e,pk(sk_E), exp(g, exp_E), e, pk(sk_E), exp(g, exp_E), i, pk(ski), euri) |
-        !verifier(true, c2, v, exp_v, skv, u, pk(sku), exp(g, exp_u), a, pk(ska), exp(g, exp_a), i, pk(ski),  uri_req) |
-        !verifier(false, c2, v, exp_v, skv, e,pk(sk_E), exp(g, exp_E), a, pk(ska), exp(g, exp_a),  i, pk(ski), uri_req) |
-        !verifier(false, c2, v, exp_v, skv, u, pk(sku), exp(g, exp_u), e,pk(sk_E), exp(g, exp_E), i, pk(ski),  uri_req) |
-        !verifier(false, c2, v, exp_v, skv, e,pk(sk_E), exp(g, exp_E), e,pk(sk_E), exp(g, exp_E), i, pk(ski), uri_req) |
-        !verifier(false, c2, v, exp_v, skv, u, pk(sku), exp(g, exp_u), a, pk(ska), exp(g, exp_a), e,pk(sk_E),  uri_req) |
-        !verifier(false, c2, v, exp_v, skv, e,pk(sk_E), exp(g, exp_E), a, pk(ska), exp(g, exp_a), e,pk(sk_E), uri_req)  |
-        !verifier(false, c2, v, exp_v, skv, u, pk(sku), exp(g, exp_u),e,pk(sk_E), exp(g, exp_E), e,pk(sk_E),  uri_req) |
-        !verifier(false, c2, v, exp_v, skv, e,pk(sk_E), exp(g, exp_E), e,pk(sk_E), exp(g, exp_E), e,pk(sk_E), uri_req)
+        (!app(true, c_a2v, c_u2a, DID_a, a, ska, DID_u, pk(sku), exp(g,u), DID_v, pk(skv), exp(g,v), DID_i, pk(ski), uri_req)) |
+        (!verifier(true,  c_a2v,  DID_v, v, skv, DID_u, pk(sku), exp(g,u), DID_a, pk(ska),  exp(g,a), DID_i, pk(ski), uri_req)) |
+        (!user(true,  c_u2a, DID_u, u, sku, DID_a, pk(ska), exp(g,a), DID_v, pk(skv),  exp(g,v), vc, uri_req))
+        (*(!app(false, c, c2, c4, a, exp_a, ska, e, pk(sk_E), exp(g,exp_E), v, pk(skv),  exp(g,exp_v), i, pk(ski), ttp, pk(sk_ttp), exp(g,exp_ttp),uri_req)) |
+        (!app(false, c, c2, c4, a, exp_a, ska, u, pk(sku),  exp(g,exp_u), e, pk(sk_E), exp(g,exp_E), i, pk(ski), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
+        (!app(false, c, c2, c4, a, exp_a, ska, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E), i, pk(ski), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
+        (!verifier(false, c2, c3, v, exp_v, skv, e, pk(sk_E), exp(g,exp_E), a, pk(ska),  exp(g,exp_a), i, pk(ski),  ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
+        (!verifier(false, c2, c3, v, exp_v, skv, u, pk(sku),  exp(g,exp_u), e, pk(sk_E), exp(g,exp_E), i, pk(ski),  ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
+        (!verifier(false, c2, c3, v, exp_v, skv, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E), i, pk(ski),  ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
+        (!verifier(false, c2, c3, v, exp_v, skv, u, pk(sku),  exp(g,exp_u), a, pk(ska),  exp(g,exp_a), e, pk(sk_E), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
+        (!verifier(false, c2, c3, v, exp_v, skv, e, pk(sk_E), exp(g,exp_E), a, pk(ska),  exp(g,exp_a), e, pk(sk_E), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
+        (!verifier(false, c2, c3, v, exp_v, skv, u, pk(sku),  exp(g,exp_u), e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
+        (!verifier(false, c2, c3, v, exp_v, skv, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) | 
+        (!user(false, c, u, exp_u, sku, e, pk(sk_E), exp(g,exp_E), v, pk(skv),  exp(g,exp_v), vc, uri_req)) |
+        (!user(false, c, u, exp_u, sku, a, pk(ska),  exp(g,exp_a), e, pk(sk_E), exp(g,exp_E), vc, euri)) |
+        (!user(false, c, u, exp_u, sku, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E), vc, euri)) |
+        (!trustedThirdParty(false, c3, c4, ttp, exp_ttp, sk_ttp, e, pk(sk_E), exp(g,exp_E), v, pk(skv),  exp(g,exp_v))) |
+        (!trustedThirdParty(false, c3, c4, ttp, exp_ttp, sk_ttp, a, pk(ska),  exp(g,exp_a), e, pk(sk_E), exp(g,exp_E))) |
+        (!trustedThirdParty(false, c3, c4, ttp, exp_ttp, sk_ttp, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E))) *)
+    
     )
 
 (* --------------------------------------------------------------------------------------------------------- *)
