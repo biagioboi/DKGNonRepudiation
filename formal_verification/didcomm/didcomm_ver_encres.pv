@@ -121,6 +121,7 @@ event reach.
 let user(talksOnlyToHonest:bool,  c_u2a:channel, DID_u:bitstring, u:exponent, sku:SecretKey, DID_a:bitstring, pka:PublicKey, g2a:G, DID_v:bitstring, pkv:PublicKey,  g2v:G, vc:bitstring, uri_req:bitstring) =
     (* Message H1 User -> App *)
     (* h1 = g^su, sig(g^su, sku) *)
+    
     new su: exponent;
     let g2su = exp(g, su) in
     let g2a2su = exp(g2a, su) in
@@ -233,6 +234,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, c_a2t:channel, DID
     let (=tag_vpr, DID_i':bitstring, DID_v':bitstring, DID_u':bitstring, DID_a':bitstring, uri':bitstring) = rule' in
     if ((DID_i', DID_v', DID_u', DID_a', uri') = (DID_i, DID_v, DID_u, DID_a, uri)) then  (*Who knows, maybe server is starting behaving maliciously *)
 
+    
     (* Message H1 User -> App *)
     (* h1 = g^su, sig(g^su, sku) *)
     in(c_u2a, (=tag_H1, H1:bitstring));
@@ -285,13 +287,13 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, c_a2t:channel, DID
     if n_r = n_r'  then
     if (check(vp, sig_vp, pku)) then
 
+(*
     (* Message VP^2 App -> CSS *)
     new k10:SymmetricKey;
     let m8 = (m7', sig(m7', ska)) in
     let M8 = (tag_m8, senc((tag_k10, k10), k_g2sc2sav), senc(m8, k10)) in
     out(c_a2v, (tag_M8, M8));
 
-    (*
     (* Message 10 CSS -> App *)
     in(c_a2v, (=msg10, m_10:bitstring));
     let (symk16_enc:bitstring, m10_enc:bitstring) = m_10 in
@@ -355,7 +357,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, c_a2t:channel, DID
     0.
 
 let verifier(talksOnlyToHonest:bool,  c_a2v:channel, c_v2t:channel, DID_v:bitstring, v:exponent, skv:SecretKey, DID_u:bitstring, pku:PublicKey, g2u:G, DID_a:bitstring, pka:PublicKey,  g2a:G, DID_i:bitstring, pki:PublicKey, DID_t:bitstring, pkt:PublicKey, g2t:G, uri_req:bitstring) =
-                
+               
     (* Message 1 App -> CSS *)
     (* m1 = (g^sav, sig(g^sav, ska)) *)
     in(c_a2v, (=tag_M1, M1:bitstring));
@@ -403,6 +405,7 @@ let verifier(talksOnlyToHonest:bool,  c_a2v:channel, c_v2t:channel, DID_v:bitstr
     event verifierInConeOfUser(M1,M2,M3,M4,M5);
     out(c_a2v, (tag_M5, M5));
 
+(*
     (* Message 8 App -> CSS *)
     (* Receive the VP^2 and checks for the signature applied *)
     in(c_a2v, (=tag_M8, M8:bitstring));
@@ -419,7 +422,7 @@ let verifier(talksOnlyToHonest:bool,  c_a2v:channel, c_v2t:channel, DID_v:bitstr
     if (DID_iss'', DID_u'') = (DID_i, DID_u) then
     let (rule'':bitstring, n_c'':bitstring) = vpr' in
     if (rule'', n_c'') = (rule, n_c) then
-
+*)
     
     (* Message 9 CSS -> TTP *)
     new sv: exponent;
@@ -432,7 +435,7 @@ let verifier(talksOnlyToHonest:bool,  c_a2v:channel, c_v2t:channel, DID_v:bitstr
     let M9 = (tag_m9, aenc((tag_g2sv, g2sv), pkt), senc((tag_k12, k12), k_g2t2sv), senc(m9, k12)) in 
     out(c_v2t, (tag_M9, M9));
 
-    (*
+    
     (* Message 10 TTP -> CSS *)
     in(c_v2t, (=tag_M10, M10:bitstring));
     let (=tag_m10, enc_g2st: bitstring, enc_k13:bitstring, enc_m10:bitstring) = M10 in
@@ -440,11 +443,14 @@ let verifier(talksOnlyToHonest:bool,  c_a2v:channel, c_v2t:channel, DID_v:bitstr
     let g2st2sv = exp(g2st, sv) in
     let hash_g2st2sv = hash_fork((g2st, g2sv, g2st2sv)) in
     let k_g2st2sv = hash_fork((g2st2sv, hash_g2st2sv, tag_k_g2sv2st)) in
-    
+   
     let (=tag_k13, k13:SymmetricKey) = sdec(enc_k13, k_g2st2sv) in
     let (g2st':G, sig_g2st:bitstring) = sdec(enc_m10, k13) in
+
     if check(hash((tag_sig_g2st, pk(skv), g2st)), sig_g2st, pkt) then
 
+    event reach;
+ (*
     (* Message 9 CSS -> TTP *)
     (* Send ack to the TTP *)
     new symk_14: SymmetricKey;
@@ -520,22 +526,23 @@ let trustedThirdParty(talksOnlyToHonest:bool, c_a2t:channel, c_v2t:channel, DID_
     let k_g2sv2t = hash_fork((g2sv2t, hash_g2sv2t, tag_k_g2t2sv)) in
     let (=tag_k12, k12:SymmetricKey) = sdec(enc_k12, k_g2sv2t) in
     let (g2sv':G, sig_g2sv:bitstring) = sdec(enc_m9, k12) in
-    if check((tag_sig_g2sv, pk(skt), g2sv), sig_g2sv , pkv) then
+    if check(hash((tag_sig_g2sv, pk(skt), g2sv)), sig_g2sv , pkv) then
     
-    event reach;
-    (*
     (* Message 10 TTP -> CSS *)
     new st: exponent;
+
     let g2st = exp(g, st) in
     let g2sv2st = exp(g2sv, st) in
     let hash_g2sv2st = hash_fork((g2st, g2sv, g2sv2st)) in
     let k_g2sv2st = hash_fork((g2sv2st, hash_g2sv2st, tag_k_g2sv2st)) in
     new k13:SymmetricKey;
-    let m10 = (g2st, sig((tag_sig_g2st, pkv, g2st), skt)) in
+    let m10 = (g2st, sig(hash((tag_sig_g2st, pkv, g2st)), skt)) in
     let M10 = (tag_m10, aenc((tag_g2st, g2st), pkv), senc((tag_k13, k13), k_g2sv2st), senc(m10, k13)) in
     event auth_TTPSendsLastMessageToVerifier(M9, M10);
     out(c_v2t, (tag_M10, M10));
+
     
+    (*
     (* Message 9 CSS -> TTP *)
     (* Receive the ack, no need to check anything on this *)
     in(c, (=msg9, m_9:bitstring));
