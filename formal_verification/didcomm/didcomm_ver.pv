@@ -130,7 +130,7 @@ let user(talksOnlyToHonest:bool,  c_u2a:channel, DID_u:bitstring, u:exponent, sk
     let (=tag_k6, k6:SymmetricKey) = sdec(enc_k6, k_g2sa2su) in
     let (th_id':bitstring, sig_g2sa:bitstring) = sdec(enc_h2, k6) in 
     if th_id' = th_id then
-    if check(hash((tag_sig_g2sa, pk(sku), g2sa)), sig_g2sa, pka) then
+    if check(hash((tag_sig_g2sa, th_id, pk(sku), g2sa)), sig_g2sa, pka) then
 
     (* Message H3 User -> App *)
     (* h3 = ack *)
@@ -243,7 +243,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:bitstring, a
     let hash_g2su2sa = hash_fork((g2su, g2sa, g2su2sa)) in
     let k_g2su2sa = hash_fork((g2su2sa, hash_g2su2sa, tag_k_g2su2sa)) in
     new k6:SymmetricKey;
-    let h2 = (their_th_id, sig(hash((tag_sig_g2sa, pku, g2sa)), ska)) in
+    let h2 = (their_th_id, sig(hash((tag_sig_g2sa, their_th_id, pku, g2sa)), ska)) in
     let H2 = (tag_h2, aenc((tag_g2sa, g2sa), pku), senc((tag_k6, k6), k_g2su2sa), senc(h2, k6)) in 
     out(c_u2a, (tag_H2, H2));
 
