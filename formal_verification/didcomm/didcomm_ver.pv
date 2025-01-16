@@ -106,7 +106,7 @@ event reach.
 
 let user(talksOnlyToHonest:bool,  c_u2a:channel, DID_u:bitstring, u:exponent, sku:SecretKey, DID_a:bitstring, pka:PublicKey, g2a:G, DID_v:bitstring, pkv:PublicKey,  g2v:G, vc:bitstring, uri_req:bitstring) =
     (* Message H1 User -> App *)
-    (* h1 = g^su, sig(g^su, sku) *)
+    (* h1 = sig(g^su, sku) *)
     
     new su: exponent;
     let g2su = exp(g, su) in
@@ -114,12 +114,12 @@ let user(talksOnlyToHonest:bool,  c_u2a:channel, DID_u:bitstring, u:exponent, sk
     let hash_g2a2su = hash_fork((g2su, g2a, g2a2su)) in
     let k_g2a2su = hash_fork((g2a2su, hash_g2a2su, tag_k_g2a2su)) in
     new k5:SymmetricKey;
-    let h1 = (g2su, sig(hash((tag_sig_g2su, pka, g2su)),sku)) in
+    let h1 = sig(hash((tag_sig_g2su, pka, g2su)),sku) in
     let H1 = (tag_h1, aenc((tag_g2su, g2su), pka), senc((tag_k5, k5), k_g2a2su), senc(h1, k5)) in
     out(c_u2a, (tag_H1, H1));
 
     (* Message H2 App -> User *)
-    (* h2 = g^sa, sig(g^sa, ska) *)
+    (* h2 = sig(g^sa, ska) *)
     in(c_u2a, (=tag_H2, H2:bitstring));
     let (=tag_h2, enc_g2sa: bitstring, enc_k6: bitstring, enc_h2:bitstring) = H2 in
     let (=tag_g2sa, g2sa:G) = adec(enc_g2sa, sku) in
@@ -127,7 +127,7 @@ let user(talksOnlyToHonest:bool,  c_u2a:channel, DID_u:bitstring, u:exponent, sk
     let hash_g2sa2su = hash_fork((g2su, g2sa, g2sa2su)) in
     let k_g2sa2su = hash_fork((g2sa2su, hash_g2sa2su, tag_k_g2su2sa)) in (* The tag used tag_k_g2su2sa is reverted with respect to the construction because otherwise it will not work *)
     let (=tag_k6, k6:SymmetricKey) = sdec(enc_k6, k_g2sa2su) in
-    let (g2sa':G, sig_g2sa:bitstring) = sdec(enc_h2, k6) in 
+    let sig_g2sa:bitstring = sdec(enc_h2, k6) in 
     if check(hash((tag_sig_g2sa, pk(sku), g2sa)), sig_g2sa, pka) then
 
     (* Message H3 User -> App *)
@@ -229,7 +229,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:bitstring, a
     let hash_g2su2a = hash_fork((g2su, exp(g, a), g2su2a)) in
     let k_g2su2a = hash_fork((g2su2a, hash_g2su2a, tag_k_g2a2su)) in (* The tag used tag_k_g2a2su is reverted with respect to the construction because otherwise it will not work *)
     let (=tag_k5, k5:SymmetricKey) = sdec(enc_k5, k_g2su2a) in
-    let (g2su':G, sig_g2su:bitstring) = sdec(enc_h1, k5) in
+    let sig_g2su:bitstring = sdec(enc_h1, k5) in
     if check(hash((tag_sig_g2su, pk(ska), g2su)), sig_g2su, pku) then
     
 
@@ -241,7 +241,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:bitstring, a
     let hash_g2su2sa = hash_fork((g2su, g2sa, g2su2sa)) in
     let k_g2su2sa = hash_fork((g2su2sa, hash_g2su2sa, tag_k_g2su2sa)) in
     new k6:SymmetricKey;
-    let h2 = (g2sa, sig(hash((tag_sig_g2sa, pku, g2sa)), ska)) in
+    let h2 = sig(hash((tag_sig_g2sa, pku, g2sa)), ska) in
     let H2 = (tag_h2, aenc((tag_g2sa, g2sa), pku), senc((tag_k6, k6), k_g2su2sa), senc(h2, k6)) in 
     out(c_u2a, (tag_H2, H2));
 
@@ -371,10 +371,10 @@ let verifier(talksOnlyToHonest:bool,  c_a2v:channel, DID_v:bitstring, v:exponent
     0.
 
 (* SECRECY *)
-query event(reach).
+(* query event(reach).
 query attacker(vp_fromProver). 
 query attacker(resource_fromApp). 
-query attacker(resource_fromVerifier).
+query attacker(resource_fromVerifier). *)
 
 query  M1:bitstring, M2:bitstring, M3:bitstring, M4:bitstring, M5:bitstring, H1:bitstring, H2:bitstring,H3:bitstring, M6:bitstring,M7:bitstring, M8:bitstring,M9:bitstring;
     event(auth_UserCompletesProtocol(H1, H2, H3, M6, M7))
