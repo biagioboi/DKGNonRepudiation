@@ -130,14 +130,15 @@ let user(talksOnlyToHonest:bool,  c_u2a:channel, DID_u:bitstring, u:exponent, sk
     let (=tag_k6, k6:SymmetricKey) = sdec(enc_k6, k_g2sa2su) in
     let (th_id':bitstring, sig_g2sa:bitstring) = sdec(enc_h2, k6) in 
     if th_id' = th_id then
-    if check(hash((tag_sig_g2sa, th_id, pk(sku), g2sa)), sig_g2sa, pka) then
+    if check(hash((tag_sig_g2sa, pk(sku), g2sa)), sig_g2sa, pka) then
 
     (* Message H3 User -> App *)
     (* h3 = ack *)
     new k7: SymmetricKey;
-    new h3:bitstring;
+    new ack:bitstring;
+    let h3:bitstring = (th_id, ack) in
     let enc_k7 = senc((tag_k7, k7), k_g2sa2su) in
-    let H3 = (tag_h3, senc(h3, k7)) in
+    let H3 = (tag_h3, enc_k7, senc(h3, k7)) in
     out(c_u2a,(tag_H3, H3));
     
     (* Message 6 App -> User *)
@@ -243,13 +244,18 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:bitstring, a
     let hash_g2su2sa = hash_fork((g2su, g2sa, g2su2sa)) in
     let k_g2su2sa = hash_fork((g2su2sa, hash_g2su2sa, tag_k_g2su2sa)) in
     new k6:SymmetricKey;
-    let h2 = (their_th_id, sig(hash((tag_sig_g2sa, their_th_id, pku, g2sa)), ska)) in
+    let h2 = (their_th_id, sig(hash((tag_sig_g2sa, pku, g2sa)), ska)) in
     let H2 = (tag_h2, aenc((tag_g2sa, g2sa), pku), senc((tag_k6, k6), k_g2su2sa), senc(h2, k6)) in 
     out(c_u2a, (tag_H2, H2));
 
     (* Message H3 User -> App *)
     (* Receive the ack, no need to check anything on this *)
     in(c_u2a, (=tag_H3, H3:bitstring));
+    let (=tag_h3, enc_k7:bitstring, enc_h3:bitstring) = H3 in
+    let (=tag_k7, k7:SymmetricKey) = sdec(enc_k7, k_g2su2a) in
+    let (thier_th_id':bitstring, ack_u:bitstring) = sdec(enc_h3, k7) in
+    if thier_th_id' = their_th_id then
+    
 
 
     (* Message 6 App -> User *)
