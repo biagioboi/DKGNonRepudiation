@@ -133,7 +133,7 @@ let user(talksOnlyToHonest:bool,  c_u2a:channel, DID_u:bitstring, u:exponent, sk
     if check(hash((tag_sig_g2sa, pk(sku), g2sa)), sig_g2sa, pka) then
 
     (* Message H3 User -> App *)
-    (* h3 = ack *)
+    (* h3 = th_id, ack *)
     new k7: SymmetricKey;
     new ack:bitstring;
     let h3:bitstring = (th_id, ack) in
@@ -252,7 +252,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:bitstring, a
     (* Receive the ack, no need to check anything on this *)
     in(c_u2a, (=tag_H3, H3:bitstring));
     let (=tag_h3, enc_k7:bitstring, enc_h3:bitstring) = H3 in
-    let (=tag_k7, k7:SymmetricKey) = sdec(enc_k7, k_g2su2a) in
+    let (=tag_k7, k7:SymmetricKey) = sdec(enc_k7, k_g2su2sa) in
     let (thier_th_id':bitstring, ack_u:bitstring) = sdec(enc_h3, k7) in
     if thier_th_id' = their_th_id then
     
