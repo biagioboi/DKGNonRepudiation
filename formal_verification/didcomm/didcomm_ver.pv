@@ -109,12 +109,13 @@ let user(talksOnlyToHonest:bool,  c_u2a:channel, DID_u:bitstring, u:exponent, sk
     (* h1 = sig(g^su, sku) *)
     
     new su: exponent;
+    new th_id:bitstring;
     let g2su = exp(g, su) in
     let g2a2su = exp(g2a, su) in
     let hash_g2a2su = hash_fork((g2su, g2a, g2a2su)) in
     let k_g2a2su = hash_fork((g2a2su, hash_g2a2su, tag_k_g2a2su)) in
     new k5:SymmetricKey;
-    let h1 = sig(hash((tag_sig_g2su, pka, g2su)),sku) in
+    let h1 = (th_id, sig(hash((tag_sig_g2su, pka, g2su)),sku)) in
     let H1 = (tag_h1, aenc((tag_g2su, g2su), pka), senc((tag_k5, k5), k_g2a2su), senc(h1, k5)) in
     out(c_u2a, (tag_H1, H1));
 
@@ -127,7 +128,8 @@ let user(talksOnlyToHonest:bool,  c_u2a:channel, DID_u:bitstring, u:exponent, sk
     let hash_g2sa2su = hash_fork((g2su, g2sa, g2sa2su)) in
     let k_g2sa2su = hash_fork((g2sa2su, hash_g2sa2su, tag_k_g2su2sa)) in (* The tag used tag_k_g2su2sa is reverted with respect to the construction because otherwise it will not work *)
     let (=tag_k6, k6:SymmetricKey) = sdec(enc_k6, k_g2sa2su) in
-    let sig_g2sa:bitstring = sdec(enc_h2, k6) in 
+    let (th_id':bitstring, sig_g2sa:bitstring) = sdec(enc_h2, k6) in 
+    if th_id' = th_id then
     if check(hash((tag_sig_g2sa, pk(sku), g2sa)), sig_g2sa, pka) then
 
     (* Message H3 User -> App *)
@@ -179,7 +181,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:bitstring, a
     let hash_g2v2sav = hash_fork((g2v, g2sav, g2v2sav)) in
     let k_g2v2sav = hash_fork((g2v2sav, hash_g2v2sav, tag_k_g2v2sav)) in
     new k0:SymmetricKey;
-    let m1 = (g2sav, sig(hash((tag_sig_g2sav, pkv, g2sav)), ska)) in
+    let m1 = sig(hash((tag_sig_g2sav, pkv, g2sav)), ska) in
     let M1 = (tag_m1, aenc((tag_g2sav, g2sav), pkv), senc((tag_k0, k0), k_g2v2sav), senc(m1, k0)) in
     out(c_a2v, (tag_M1,M1));
 
@@ -192,7 +194,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:bitstring, a
     let hash_g2sc2sav = hash_fork((g2sc, g2sav, g2sc2sav)) in 
     let k_g2sc2sav = hash_fork((g2sc2sav, hash_g2sc2sav, tag_k_g2sav2sc)) in (* The tag used tag_k_g2sav2sc is reverted with respect to the construction because otherwise it will not work *)
     let (=tag_k1, k1:SymmetricKey) = sdec(enc_k1, k_g2sc2sav) in
-    let (g2sc':G, sig_g2sc:bitstring) = sdec(enc_m2, k1) in
+    let sig_g2sc:bitstring = sdec(enc_m2, k1) in
     if check(hash((tag_sig_g2sc, pk(ska), g2sc)), sig_g2sc, pkv) then
 
     (* Message 3 App -> CSS *)
@@ -292,7 +294,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:bitstring, a
 let verifier(talksOnlyToHonest:bool,  c_a2v:channel, DID_v:bitstring, v:exponent, skv:SecretKey, DID_u:bitstring, pku:PublicKey, g2u:G, DID_a:bitstring, pka:PublicKey,  g2a:G, DID_i:bitstring, pki:PublicKey, uri_req:bitstring) =
                
     (* Message 1 App -> CSS *)
-    (* m1 = (g^sav, sig(g^sav, ska)) *)
+    (* m1 = sig(g^sav, ska) *)
     in(c_a2v, (=tag_M1, M1:bitstring));
     let (=tag_m1, enc_g2sav: bitstring, enc_k0:bitstring, enc_m1:bitstring) = M1 in
     let (=tag_g2sav, g2sav:G) = adec(enc_g2sav, skv) in
@@ -300,18 +302,18 @@ let verifier(talksOnlyToHonest:bool,  c_a2v:channel, DID_v:bitstring, v:exponent
     let hash_g2sav2v = hash_fork((exp(g, v), g2sav, g2sav2v)) in
     let k_g2sav2v = hash_fork((g2sav2v, hash_g2sav2v, tag_k_g2v2sav)) in (* The tag used tag_k_g2v2sav is reverted with respect to the construction because otherwise it will not work *)
     let (=tag_k0, k0:SymmetricKey) = sdec(enc_k0, k_g2sav2v) in
-    let (g2sav':G, sig_g2sav:bitstring) = sdec(enc_m1, k0) in
+    let sig_g2sav:bitstring = sdec(enc_m1, k0) in
     if check(hash((tag_sig_g2sav, pk(skv), g2sav)), sig_g2sav, pka) then
     
     (* Message 2 CSS -> App *)
-    (* m2 = (g^sc, sig(g^sc, skv))*)
+    (* m2 = sig(g^sc, skv) *)
     new sc: exponent;
     let g2sc = exp(g, sc) in
     let g2sav2sc = exp(g2sav, sc) in
     let hash_g2sav2sc = hash_fork((g2sc, g2sav, g2sav2sc)) in
     let k_g2sav2sc = hash_fork((g2sav2sc, hash_g2sav2sc, tag_k_g2sav2sc)) in
     new k1:SymmetricKey;
-    let m2 = (g2sc,sig(hash((tag_sig_g2sc, pka, g2sc)), skv)) in
+    let m2 = sig(hash((tag_sig_g2sc, pka, g2sc)), skv) in
     let M2 = (tag_m2, aenc((tag_g2sc, g2sc), pka), senc((tag_k1, k1), k_g2sav2sc), senc(m2, k1)) in 
     out(c_a2v, (tag_M2, M2));
 
