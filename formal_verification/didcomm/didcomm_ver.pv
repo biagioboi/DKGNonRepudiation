@@ -38,6 +38,9 @@ const tag_g2su, tag_g2sa, tag_g2sav, tag_g2sc, tag_g2st, tag_g2sv: etag [data].
 
 const tag_vpr, tag_vp, tag_vc, tag_sig_vp, tag_pack_vpr_2, tag_sig_vpr_2, tag_sig_vp_2, tag_attr, tag_vpr_fromu, tag_vpr_send, tag_vpr_send_app, tag_resource:tag[data].
 
+const tag_enc_m1, tag_enc_m2, tag_enc_m3, tag_enc_h1, tag_enc_h2, tag_enc_h3: tag[data].
+
+
 (* Constants needed *)
 const uri_req:bitstring.    (* URI of the request *)
 const g: G.                 (* Generator for the g^x *)
@@ -115,7 +118,7 @@ let user(talksOnlyToHonest:bool,  c_u2a:channel, DID_u:bitstring, u:exponent, sk
     let hash_g2a2su = hash_fork((g2su, g2a, g2a2su)) in
     let k_g2a2su = hash_fork((g2a2su, hash_g2a2su, tag_k_g2a2su)) in
     new k5:SymmetricKey;
-    let h1 = (th_id_u2a, sig(hash((tag_sig_g2su, pka, g2su)),sku)) in
+    let h1 = (tag_enc_h1, th_id_u2a, sig(hash((tag_sig_g2su, pka, g2su)),sku)) in
     let H1 = (tag_h1, aenc((tag_g2su, g2su), pka), senc((tag_k5, k5), k_g2a2su), senc(h1, k5)) in
     out(c_u2a, (tag_H1, H1));
 
@@ -128,7 +131,7 @@ let user(talksOnlyToHonest:bool,  c_u2a:channel, DID_u:bitstring, u:exponent, sk
     let hash_g2sa2su = hash_fork((g2su, g2sa, g2sa2su)) in
     let k_g2sa2su = hash_fork((g2sa2su, hash_g2sa2su, tag_k_g2su2sa)) in (* The tag used tag_k_g2su2sa is reverted with respect to the construction because otherwise it will not work *)
     let (=tag_k6, k6:SymmetricKey) = sdec(enc_k6, k_g2sa2su) in
-    let (th_id_u2a':bitstring, sig_g2sa:bitstring) = sdec(enc_h2, k6) in 
+    let (=tag_enc_h2, th_id_u2a':bitstring, sig_g2sa:bitstring) = sdec(enc_h2, k6) in 
     if th_id_u2a' = th_id_u2a then
     if check(hash((tag_sig_g2sa, pk(sku), g2sa)), sig_g2sa, pka) then
 
@@ -136,7 +139,7 @@ let user(talksOnlyToHonest:bool,  c_u2a:channel, DID_u:bitstring, u:exponent, sk
     (* h3 = th_id, ack *)
     new k7: SymmetricKey;
     new ack:bitstring;
-    let h3:bitstring = (th_id_u2a, ack) in
+    let h3:bitstring = (tag_enc_h3, th_id_u2a, ack) in
     let enc_k7 = senc((tag_k7, k7), k_g2sa2su) in
     let H3 = (tag_h3, enc_k7, senc(h3, k7)) in
     out(c_u2a,(tag_H3, H3));
@@ -183,7 +186,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:bitstring, a
     let k_g2v2sav = hash_fork((g2v2sav, hash_g2v2sav, tag_k_g2v2sav)) in
     new k0:SymmetricKey;
     new th_id_a2v:bitstring;
-    let m1 = (th_id_a2v, sig(hash((tag_sig_g2sav, pkv, g2sav)), ska)) in
+    let m1 = (tag_enc_m1, th_id_a2v, sig(hash((tag_sig_g2sav, pkv, g2sav)), ska)) in
     let M1 = (tag_m1, aenc((tag_g2sav, g2sav), pkv), senc((tag_k0, k0), k_g2v2sav), senc(m1, k0)) in
     out(c_a2v, (tag_M1,M1));
 
@@ -196,7 +199,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:bitstring, a
     let hash_g2sc2sav = hash_fork((g2sc, g2sav, g2sc2sav)) in 
     let k_g2sc2sav = hash_fork((g2sc2sav, hash_g2sc2sav, tag_k_g2sav2sc)) in (* The tag used tag_k_g2sav2sc is reverted with respect to the construction because otherwise it will not work *)
     let (=tag_k1, k1:SymmetricKey) = sdec(enc_k1, k_g2sc2sav) in
-    let (th_id_a2v':bitstring, sig_g2sc:bitstring) = sdec(enc_m2, k1) in
+    let (=tag_enc_m2, th_id_a2v':bitstring, sig_g2sc:bitstring) = sdec(enc_m2, k1) in
     if (th_id_a2v' = th_id_a2v) then
     if check(hash((tag_sig_g2sc, pk(ska), g2sc)), sig_g2sc, pkv) then
 
@@ -204,7 +207,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:bitstring, a
     (* Send ack to the CSS *)
     new k2: SymmetricKey;
     new ack_a2v:bitstring;
-    let m3:bitstring = (th_id_a2v, ack_a2v) in
+    let m3:bitstring = (tag_enc_m3, th_id_a2v, ack_a2v) in
     let M3 = (tag_m3, senc((tag_k2, k2), k_g2sc2sav), senc(m3, k2)) in
     out(c_a2v,(tag_M3, M3));
 
@@ -235,7 +238,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:bitstring, a
     let hash_g2su2a = hash_fork((g2su, exp(g, a), g2su2a)) in
     let k_g2su2a = hash_fork((g2su2a, hash_g2su2a, tag_k_g2a2su)) in (* The tag used tag_k_g2a2su is reverted with respect to the construction because otherwise it will not work *)
     let (=tag_k5, k5:SymmetricKey) = sdec(enc_k5, k_g2su2a) in
-    let (th_id_u2a:bitstring, sig_g2su:bitstring) = sdec(enc_h1, k5) in
+    let (=tag_enc_h1, th_id_u2a:bitstring, sig_g2su:bitstring) = sdec(enc_h1, k5) in
     if check(hash((tag_sig_g2su, pk(ska), g2su)), sig_g2su, pku) then
     
 
@@ -247,7 +250,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:bitstring, a
     let hash_g2su2sa = hash_fork((g2su, g2sa, g2su2sa)) in
     let k_g2su2sa = hash_fork((g2su2sa, hash_g2su2sa, tag_k_g2su2sa)) in
     new k6:SymmetricKey;
-    let h2 = (th_id_u2a, sig(hash((tag_sig_g2sa, pku, g2sa)), ska)) in
+    let h2 = (tag_enc_h2, th_id_u2a, sig(hash((tag_sig_g2sa, pku, g2sa)), ska)) in
     let H2 = (tag_h2, aenc((tag_g2sa, g2sa), pku), senc((tag_k6, k6), k_g2su2sa), senc(h2, k6)) in 
     out(c_u2a, (tag_H2, H2));
 
@@ -256,7 +259,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:bitstring, a
     in(c_u2a, (=tag_H3, H3:bitstring));
     let (=tag_h3, enc_k7:bitstring, enc_h3:bitstring) = H3 in
     let (=tag_k7, k7:SymmetricKey) = sdec(enc_k7, k_g2su2sa) in
-    let (th_id_u2a':bitstring, ack_u:bitstring) = sdec(enc_h3, k7) in
+    let (=tag_enc_h3, th_id_u2a':bitstring, ack_u:bitstring) = sdec(enc_h3, k7) in
     if th_id_u2a' = th_id_u2a then
 
 
@@ -310,7 +313,7 @@ let verifier(talksOnlyToHonest:bool,  c_a2v:channel, DID_v:bitstring, v:exponent
     let hash_g2sav2v = hash_fork((exp(g, v), g2sav, g2sav2v)) in
     let k_g2sav2v = hash_fork((g2sav2v, hash_g2sav2v, tag_k_g2v2sav)) in (* The tag used tag_k_g2v2sav is reverted with respect to the construction because otherwise it will not work *)
     let (=tag_k0, k0:SymmetricKey) = sdec(enc_k0, k_g2sav2v) in
-    let (th_id_a2v:bitstring, sig_g2sav:bitstring) = sdec(enc_m1, k0) in
+    let (=tag_enc_m1, th_id_a2v:bitstring, sig_g2sav:bitstring) = sdec(enc_m1, k0) in
     if check(hash((tag_sig_g2sav, pk(skv), g2sav)), sig_g2sav, pka) then
     
     (* Message 2 CSS -> App *)
@@ -321,7 +324,7 @@ let verifier(talksOnlyToHonest:bool,  c_a2v:channel, DID_v:bitstring, v:exponent
     let hash_g2sav2sc = hash_fork((g2sc, g2sav, g2sav2sc)) in
     let k_g2sav2sc = hash_fork((g2sav2sc, hash_g2sav2sc, tag_k_g2sav2sc)) in
     new k1:SymmetricKey;
-    let m2 = (th_id_a2v, sig(hash((tag_sig_g2sc, pka, g2sc)), skv)) in
+    let m2 = (tag_enc_m2, th_id_a2v, sig(hash((tag_sig_g2sc, pka, g2sc)), skv)) in
     let M2 = (tag_m2, aenc((tag_g2sc, g2sc), pka), senc((tag_k1, k1), k_g2sav2sc), senc(m2, k1)) in 
     out(c_a2v, (tag_M2, M2));
 
@@ -330,7 +333,7 @@ let verifier(talksOnlyToHonest:bool,  c_a2v:channel, DID_v:bitstring, v:exponent
     in(c_a2v, (=tag_M3, M3:bitstring));
     let (=tag_m3, enc_k2:bitstring, enc_m3:bitstring) = M3 in
     let (=tag_k2, k2:SymmetricKey) = sdec(enc_k2, k_g2sav2sc) in
-    let (th_id_a2v':bitstring, ack_a2v:bitstring) = sdec(enc_m3, k2) in
+    let (=tag_enc_m3, th_id_a2v':bitstring, ack_a2v:bitstring) = sdec(enc_m3, k2) in
     if (th_id_a2v' = th_id_a2v) then
 
     (* Message 4 App -> CSS *)
