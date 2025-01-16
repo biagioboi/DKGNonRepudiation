@@ -373,8 +373,8 @@ let verifier(talksOnlyToHonest:bool,  c_a2v:channel, DID_v:bitstring, v:exponent
     0.
 
 (* SECRECY *)
-(* query event(reach).
-query attacker(vp_fromProver). 
+query event(reach).
+(*query attacker(vp_fromProver). 
 query attacker(resource_fromApp). 
 query attacker(resource_fromVerifier). *)
 
