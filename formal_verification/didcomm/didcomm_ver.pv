@@ -96,7 +96,7 @@ event auth_UserSendsLastMessageToApp(bitstring,bitstring, bitstring, bitstring,b
 event auth_VerifierSendsLastMessageToApp(bitstring,bitstring,bitstring,bitstring,bitstring,bitstring, bitstring).
 
 (* App -> Verifier *)
-event auth_AppSendsLastMessageToVerifier(bitstring, bitstring, bitstring, bitstring, bitstring,bitstring,bitstring,bitstring,bitstring,bitstring).
+event auth_AppSendsLastMessageToVerifier(bitstring, bitstring, bitstring, bitstring, bitstring, bitstring,bitstring,bitstring,bitstring,bitstring,bitstring).
 
 event reach.
 (* --------------------------------------------------------------------------------------------------------- *)
@@ -275,6 +275,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:bitstring, a
     new k10:SymmetricKey;
     let m8 = (tag_sig_vp_2, (tag_sig_vp, vp, sig_vp), sig((tag_sig_vp, vp, sig_vp), ska)) in
     let M8 = (tag_m8, senc((tag_k10, k10), k_g2sc2sav), senc(m8, k10)) in
+    event auth_AppSendsLastMessageToVerifier(M1, M2, M3, M4, M5, H1, H2, H3, M6, M7, M8);
     out(c_a2v, (tag_M8, M8));
 
     (* Message 10 CSS -> App *)
@@ -392,7 +393,7 @@ query  M1:bitstring, M2:bitstring, M3:bitstring, M4:bitstring, M5:bitstring, H1:
 query  M1:bitstring, M2:bitstring, M3:bitstring, M4:bitstring, M5:bitstring, H1:bitstring, H2:bitstring,H3:bitstring, M6:bitstring,M7:bitstring, M8:bitstring,M9:bitstring;
     inj-event(auth_VerifierCompletesProtocol(M1, M2, M3, M4, M5, M8, M9))
     ==>
-    inj-event(auth_AppSendsLastMessageToVerifier(M1, M2, M3, M4, M5, H1, H2, H3, M6, M8))
+    inj-event(auth_AppSendsLastMessageToVerifier(M1, M2, M3, M4, M5, H1, H2, H3, M6, M7, M8))
     &&
     inj-event(auth_UserSendsLastMessageToApp(H1, H2, H3, M6, M7)). 
 
