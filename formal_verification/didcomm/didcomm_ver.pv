@@ -165,12 +165,12 @@ let user(talksOnlyToHonest:bool,  c_u2a:channel, DID_u:DID, u:exponent, sku:Secr
     new k9:SymmetricKey;
     let M7 = (tag_m7, senc((tag_k9, k9), k_g2sa2su), senc(m7, k9)) in
     
-    event auth_UserSendsLastMessageToApp(H1, H2, H3, M6, M7);
+    (* event auth_UserSendsLastMessageToApp(H1, H2, H3, M6, M7); *)
     out(c_u2a, (tag_M7, M7));
     
  
     if talksOnlyToHonest then
-        event auth_UserCompletesProtocol(H1, H2, H3, M6, M7)|
+        (* event auth_UserCompletesProtocol(H1, H2, H3, M6, M7)| *)
         out(ch(vp), vp_fromProver);
     
     0.
@@ -269,7 +269,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:DID, a:expon
     let m6 = (tag_enc_m6, (vpr_2, (tag_sig_vpr_fromapp, sig(hash(vpr_2), ska)))) in
     new k8:SymmetricKey;
     let M6 = (tag_m6, senc((tag_k8, k8), k_g2su2sa), senc(m6, k8)) in
-    event auth_AppSendsLastMessageToUser(M1, M2, M3, M4, M5, H1, H2, H3, M6);
+    (* event auth_AppSendsLastMessageToUser(M1, M2, M3, M4, M5, H1, H2, H3, M6); *)
     out(c_u2a, (tag_M6, M6));
     
     
@@ -288,7 +288,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:DID, a:expon
     new k10:SymmetricKey;
     let m8 = (tag_enc_m8, (tag_enc_m7, (tag_vp, vp), (tag_sig_vp_user, sig_vp)), sig(hash((tag_enc_m7, vp, sig_vp)), ska)) in
     let M8 = (tag_m8, senc((tag_k10, k10), k_g2sc2sav), senc(m8, k10)) in
-    event auth_AppSendsLastMessageToVerifier(M1, M2, M3, M4, M5, H1, H2, H3, M6, M7, M8);
+    (* event auth_AppSendsLastMessageToVerifier(M1, M2, M3, M4, M5, H1, H2, H3, M6, M7, M8); *)
     out(c_a2v, (tag_M8, M8));
 
 
@@ -297,7 +297,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:DID, a:expon
     let (=tag_m9, enc_k11:bitstring, enc_m10:bitstring) = M9 in
     let (=tag_k11, k11:SymmetricKey) = sdec(enc_k11, k_g2sc2sav) in
     let (=tag_enc_m9, resource:bitstring) = sdec(enc_m10, k11) in
-   (*event reach;*)
+    event reach;
     if talksOnlyToHonest then
         event auth_AppCompletesProtocol(M1, M2, M3, M4, M5, H1, H2, H3, M6, M7, M8, M9)|
         out(ch(resource), resource_fromApp);
@@ -381,17 +381,17 @@ let verifier(talksOnlyToHonest:bool,  c_a2v:channel, DID_v:DID, v:exponent, skv:
     new resource: bitstring;
     let m9 = (tag_enc_m9, resource) in
     let M9 = (tag_m9, senc((tag_k11, k11), k_g2sav2sc), senc(m9, k11)) in
-    event auth_VerifierSendsLastMessageToApp(M1, M2, M3, M4, M5, M8, M9);
+    (* event auth_VerifierSendsLastMessageToApp(M1, M2, M3, M4, M5, M8, M9); *)
     out(c_a2v, (tag_M9, M9));
     if talksOnlyToHonest then
-        event auth_VerifierCompletesProtocol(M1, M2, M3, M4, M5, M8, M9)|
+        (* event auth_VerifierCompletesProtocol(M1, M2, M3, M4, M5, M8, M9)| *)
         out(ch(resource), resource_fromVerifier);
     0.
 
 (* SECRECY *)
 
 query event(reach). 
-
+(* 
 query attacker(vp_fromProver). 
 query attacker(resource_fromApp). 
 query attacker(resource_fromVerifier). 
@@ -414,7 +414,7 @@ query  M1:bitstring, M2:bitstring, M3:bitstring, M4:bitstring, M5:bitstring, H1:
     inj-event(auth_AppSendsLastMessageToVerifier(M1, M2, M3, M4, M5, H1, H2, H3, M6, M7, M8))
     &&
     inj-event(auth_UserSendsLastMessageToApp(H1, H2, H3, M6, M7)). 
-
+*)
 (* Define the channels *)
 free c:channel.
 free c_u2a:channel. (* For User - App*)
