@@ -55,14 +55,11 @@ const uri_req:bitstring.    (* URI of the request *)
 const g: G.                 (* Generator for the g^x *)
 
 (* One-Way Functions *)
-fun hash_pk(PublicKey): bitstring.      (* Hash of PublicKey *)
 fun hash_gen(G):bitstring.              (* Hash of G *)
 fun bit2symk(bitstring):SymmetricKey.
-
 fun Gtb(G):bitstring.                   (* Generator to obtain a bitstring *)
 fun hash(bitstring): bitstring.         (* Hash of bitstring*)
 fun pk(SecretKey):PublicKey.            (* Public Key Function *)
-fun btk(bitstring): SymmetricKey.       (* Bitstring to SymmetricKey *)
 
 (* Functions *)
 
@@ -74,11 +71,6 @@ equation forall x: exponent, y: exponent; exp(exp(g, x), y) = exp(exp(g, y), x).
 fun senc(bitstring, SymmetricKey):bitstring.
 reduc forall msg:bitstring,symk:SymmetricKey; sdec(senc(msg,symk),symk)=msg.
 
-
-(* Symmetric Key Symmetric Encryption *)
-fun sksenc(SymmetricKey, SymmetricKey):bitstring.
-reduc forall msg:SymmetricKey,symk:SymmetricKey; sksdec(sksenc(msg,symk),symk)=msg.
-
 (* Generator Asymmetric Encryption *)
 fun aenc(bitstring, PublicKey):bitstring.
 reduc forall msg:bitstring,sk:SecretKey; adec(aenc(msg,pk(sk)),sk)=msg.
@@ -86,10 +78,6 @@ reduc forall msg:bitstring,sk:SecretKey; adec(aenc(msg,pk(sk)),sk)=msg.
 (* Classical Digital Signature *)
 fun sig(bitstring, SecretKey):bitstring.
 reduc forall msg:bitstring,sk:SecretKey; check(msg,sig(msg,sk),pk(sk))=true.
-
-(* Digital Signature of a Symmetric Key *)
-fun sig_hash_k(SymmetricKey, SecretKey):bitstring.
-reduc forall msg:SymmetricKey,sk:SecretKey; check_hash_k(msg,sig_hash_k(msg,sk),pk(sk))=true.
 
 (* Function for Generating DIDs from Generator *)
 fun gen_DID(G (*such that DID can not be inferred by others*)):DID.
@@ -111,11 +99,14 @@ const attr_did_i, attr_did_u: bitstring[private].
 event auth_UserCompletesProtocolWithApp(bitstring).
 event auth_AppSendsLastMessageToUser(bitstring).
 
+(* App authenticate the User *)
+event auth_AppCompletesProtocolWithUser(bitstring).
+event auth_UserSendsLastMessageToApp(bitstring).
+
 event reachEndUser(bitstring, bitstring, bitstring, bitstring, bitstring).
 event reachEndApp(bitstring, bitstring, bitstring, bitstring, bitstring, bitstring, bitstring, bitstring, bitstring, bitstring).
 event reachEndCSS(bitstring, bitstring, bitstring, bitstring, bitstring).
 
-event reach.
 
 (* --------------------------------------------------------------------------------------------------------- *)
 (* End Definitions *)
@@ -139,7 +130,7 @@ let user(talksOnlyToHonest:bool,  c_u2a:channel, DID_u:DID, u:exponent, sku:Secr
     in(c_u2a, (=tag_M6, M6':bitstring));
     let (enc_k5:bitstring, enc_g2sa:bitstring, enc_m6:bitstring) = M6' in
     let (=tag_g2sa, g2sa':G) = adec(enc_g2sa, sku) in
-    let g2su2sa = bit2symk((tag_g2su2sa, exp(g2sa', su))) in
+    let g2su2sa = bit2symk((tag_g2su2sa, hash_gen(exp(g2sa', su)))) in
     let (=tag_k5, k5':SymmetricKey) = sdec(enc_k5, g2su2sa) in
     let (=tag_m6, m6':bitstring) = sdec(enc_m6, k5') in
     let (th3':nonce, s4:bitstring) = m6' in
@@ -162,7 +153,10 @@ let user(talksOnlyToHonest:bool,  c_u2a:channel, DID_u:DID, u:exponent, sku:Secr
     let vp:bitstring = (nr', m4', vc) in
     let m9:bitstring = (vp, sig(hash(vp), sku)) in
     let M9 = (senc((tag_k8, k8), g2su2sa), senc((tag_m9, m9), k8)) in
-    event reachEndUser(M5, M6', M7, M8', M9);
+
+    event auth_UserCompletesProtocolWithApp(M8');
+    event auth_UserSendsLastMessageToApp(M9);
+    (* event reachEndUser(M5, M6', M7, M8', M9); *)
     out(c_u2a, (tag_M9, M9));
     0.
 
@@ -184,7 +178,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:DID, a:expon
     in(c_a2v, (=tag_M2, M2':bitstring));
     let (enc_k1:bitstring, enc_g2sc:bitstring, enc_m2:bitstring) = M2' in
     let (=tag_g2sc, g2sc':G) = adec(enc_g2sc, ska) in
-    let g2sc2sav = bit2symk((tag_g2sc2sav, exp(g2sc', sav))) in
+    let g2sc2sav = bit2symk((tag_g2sc2sav, hash_gen(exp(g2sc', sav)))) in
     let (=tag_k1, k1':SymmetricKey) = sdec(enc_k1, g2sc2sav) in
     let (=tag_m2, m2':bitstring) = sdec(enc_m2, k1') in
     let (th1':nonce, s2:bitstring) = m2' in
@@ -215,7 +209,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:DID, a:expon
 
     let g2sa = exp(g, sa) in
     let m6:bitstring = (th3', sig(hash_gen(g2sa), ska)) in
-    let g2su2sa = bit2symk((tag_g2su2sa, exp(g2su', sa))) in
+    let g2su2sa = bit2symk((tag_g2su2sa, hash_gen(exp(g2su', sa)))) in
     let M6:bitstring = (senc((tag_k5, k5), g2su2sa), aenc((tag_g2sa, g2sa), pku), senc((tag_m6, m6), k5)) in
     out(c_u2a, (tag_M6, M6));
 
@@ -227,6 +221,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:DID, a:expon
     let vpr2 = (m4', nr) in
     let m8 = (vpr2, sig(hash(vpr2), ska)) in
     let M8 = (senc((tag_k7, k7), g2su2sa), senc((tag_m8, m8), k7)) in
+    event auth_AppSendsLastMessageToUser(M8);
     out(c_u2a, (tag_M8, M8));
 
     in(c_u2a, (=tag_M9, M9':bitstring));
@@ -237,10 +232,11 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:DID, a:expon
     let (nr':nonce, m4'':bitstring, vc':bitstring) = vp' in
     if check(hash(vp'), s6, pku) then
     if nr' = nr then
+    event auth_AppCompletesProtocolWithUser(M9');
 
     let m10 = (m9', sig(hash(m9'), ska)) in
     let M10 = (senc((tag_k9, k9),g2sc2sav), senc((tag_m10, m10), k9)) in
-    event reachEndApp(M1, M2', M3, M4', M5', M6, M7', M8, M9', M10);
+    (* event reachEndApp(M1, M2', M3, M4', M5', M6, M7', M8, M9', M10); *)
     out(c_a2v, (tag_M10, M10));
 
     
@@ -267,7 +263,7 @@ let verifier(talksOnlyToHonest:bool,  c_a2v:channel, DID_v:DID, v:exponent, skv:
     if (th0' = th0) then
 
     let g2sc = exp(g, sc) in
-    let g2sc2sav = bit2symk((tag_g2sc2sav, exp(g2sav', sc))) in
+    let g2sc2sav = bit2symk((tag_g2sc2sav, hash_gen(exp(g2sav', sc)))) in
     let m2:bitstring = (th1', sig(hash_gen(g2sc), skv)) in
     let M2:bitstring = (senc((tag_k1, k1), g2sc2sav), aenc((tag_g2sc, g2sc), pka), senc((tag_m2, m2), k1)) in
     out(c_a2v, (tag_M2, M2));
@@ -297,29 +293,30 @@ let verifier(talksOnlyToHonest:bool,  c_a2v:channel, DID_v:DID, v:exponent, skv:
     if check(hash(vc_claims), sig_vc_claims, pki) then
     let (attr''':bitstring, DID_i''':DID, DID_u''':DID) =vc_claims in
     if (attr''' = attr) then
-    event reach;
-    event reachEndCSS(M1', M2, M3', M4, M10');
+
+    (* event reachEndCSS(M1', M2, M3', M4, M10'); *)
 
     0.
 
 (* SECRECY *)
-query event(reach).
+
+query M9:bitstring;
+      event(auth_AppCompletesProtocolWithUser(M9)) ==> event(auth_UserSendsLastMessageToApp(M9)).
+            
+
+(* It returns cannot be proven
+ query M8:bitstring;
+      event(auth_UserCompletesProtocolWithApp(M8)) ==> event(auth_AppSendsLastMessageToUser(M8)). *)
+
+(* (* Give me false, this should be okay because all the three events are executed *)
 query M1:bitstring, M2:bitstring, M3:bitstring, M4:bitstring, M5:bitstring, M6:bitstring, M7:bitstring, M8:bitstring, M9:bitstring, M10:bitstring;
-    event(reachEndUser(M5, M6, M7, M8, M9)) && event(reachEndApp(M1, M2, M3, M4, M5, M6, M7, M8, M9, M10)) && event(reachEndCSS(M1, M2, M3, M4, M10)).
+    event(reachEndUser(M5, M6, M7, M8, M9)) && event(reachEndApp(M1, M2, M3, M4, M5, M6, M7, M8, M9, M10)) && event(reachEndCSS(M1, M2, M3, M4, M10)). *)
 
-
-
-(*query m6:bitstring;
-     event(auth_UserCompletesProtocolWithApp(m6)) ==> event(auth_AppSendsLastMessageToUser(m6)).*)
 
 (* Define the channels *)
 free c:channel.
 free c_u2a:channel. (* For User - App*)
 free c_a2v:channel. (* For App - Verifier *)
-
-(* Definition for the attacker *)
-free skE:SecretKey.
-free E:exponent.
 
 process (*use root process for setup *)
 
@@ -354,42 +351,23 @@ process (*use root process for setup *)
     let DID_a = gen_DID(exp(g, a)) in
     let DID_v = gen_DID(exp(g, v)) in
     let DID_i = gen_DID(exp(g, i)) in
-    let DID_E = gen_DID(exp(g, E)) in
 
     (* Advertise identities*)
     out(c, DID_u);
     out(c, DID_a);
     out(c, DID_v);
     out(c, DID_i);
-    out(c, DID_E);
     
     new claims:bitstring;
     let attr = (DID_u, DID_i, claims) in
     let vc = ((attr, DID_i, DID_u), sig(hash((attr, DID_i, DID_u)), ski)) in
    
 
-    (*let agents dance*)
     (
 
         (!verifier(true,  c_a2v,  DID_v, v, skv, DID_u, pk(sku), exp(g,u), DID_a, pk(ska),  exp(g,a), DID_i, pk(ski), claims, uri_req)) |
         (!app(true, c_a2v, c_u2a, DID_a, a, ska, DID_u, pk(sku), exp(g,u), DID_v, pk(skv), exp(g,v), DID_i, pk(ski), uri_req)) |
         (!user(true,  c_u2a, DID_u, u, sku, DID_a, pk(ska), exp(g,a), DID_v, pk(skv),  exp(g,v), DID_i, pk(ski), exp(g, i), vc, uri_req))
-        (*(!app(false, c_a2v, c_u2a, DID_a, a, ska, DID_E, pk(skE), exp(g,E), DID_v, pk(skv),  exp(g,v), DID_i, pk(ski),uri_req)) |
-        (!app(false, c_a2v, c_u2a, DID_a, a, ska, DID_E, pk(skE), exp(g,E), DID_E, pk(skE), exp(g,E), DID_i, pk(ski), uri_req)) |
-        (!app(false, c_a2v, c_u2a, DID_a, a, ska, DID_u, pk(sku),  exp(g,u), DID_E, pk(skE), exp(g,E), DID_i, pk(ski), uri_req))*)
-        (*(!verifier(false, c2, c3, v, exp_v, skv, e, pk(sk_E), exp(g,exp_E), a, pk(ska),  exp(g,exp_a), i, pk(ski),  ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
-        (!verifier(false, c2, c3, v, exp_v, skv, u, pk(sku),  exp(g,exp_u), e, pk(sk_E), exp(g,exp_E), i, pk(ski),  ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
-        (!verifier(false, c2, c3, v, exp_v, skv, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E), i, pk(ski),  ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
-        (!verifier(false, c2, c3, v, exp_v, skv, u, pk(sku),  exp(g,exp_u), a, pk(ska),  exp(g,exp_a), e, pk(sk_E), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
-        (!verifier(false, c2, c3, v, exp_v, skv, e, pk(sk_E), exp(g,exp_E), a, pk(ska),  exp(g,exp_a), e, pk(sk_E), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
-        (!verifier(false, c2, c3, v, exp_v, skv, u, pk(sku),  exp(g,exp_u), e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) |
-        (!verifier(false, c2, c3, v, exp_v, skv, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), ttp, pk(sk_ttp), exp(g,exp_ttp), uri_req)) | 
-        (!user(false, c, u, exp_u, sku, e, pk(sk_E), exp(g,exp_E), v, pk(skv),  exp(g,exp_v), vc, uri_req)) |
-        (!user(false, c, u, exp_u, sku, a, pk(ska),  exp(g,exp_a), e, pk(sk_E), exp(g,exp_E), vc, euri)) |
-        (!user(false, c, u, exp_u, sku, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E), vc, euri)) |
-        (!trustedThirdParty(false, c3, c4, ttp, exp_ttp, sk_ttp, e, pk(sk_E), exp(g,exp_E), v, pk(skv),  exp(g,exp_v))) |
-        (!trustedThirdParty(false, c3, c4, ttp, exp_ttp, sk_ttp, a, pk(ska),  exp(g,exp_a), e, pk(sk_E), exp(g,exp_E))) |
-        (!trustedThirdParty(false, c3, c4, ttp, exp_ttp, sk_ttp, e, pk(sk_E), exp(g,exp_E), e, pk(sk_E), exp(g,exp_E))) *)
     
     )
 
