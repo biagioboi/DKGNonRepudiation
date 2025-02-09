@@ -14,7 +14,7 @@
 (* Each symmetric key encryption, and message encryption contains a tag. e.g. enc_m1 = ((tag_m1, m1), kx); enc_k1 = ((tag_k1, k1), shared_secret) *)
 (* Each generation of shared secret contains a tag identifying the shared secret. e.g. g2x2y = (tag_g2xg2y, hash_gen(g(g2x, y)))*)
 (* Each encryption of generator will be concatenated with the related tag e.g. aenc_g2x = aenc((tag_g2x, g2x), pkz) *)
-(* To simplify the protocol, after the handshake and the establishment of shared secret, We do*)
+(* To simplify the protocol, after the handshake and the establishment of shared secret, We don't send each time the session key *)
 
 (* Types Definition *)
 type SymmetricKey.  (* Symmetric Keys *)
