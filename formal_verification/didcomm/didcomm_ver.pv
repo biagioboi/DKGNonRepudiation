@@ -28,7 +28,6 @@ type nonce.         (* Nonce *)
 (* Tags Definition *)
 type tag.   (* Tag for message *)
 type ktag.  (* Tag for symmetric key *)
-type stag.  (* Tag for signature *)
 type etag.  (* Tag for exponent *)
 
 
@@ -36,19 +35,19 @@ type etag.  (* Tag for exponent *)
 const tag_th0, tag_th2 :tag [data].
 
 (* Tags for the encapsulation of the messages in plaintext *)
-const tag_m1, tag_m2, tag_m3, tag_m4, tag_m5, tag_m6, tag_m7, tag_m8, tag_m9, tag_m10:tag [data].
+const tag_m1, tag_m2, tag_m3, tag_m4, tag_m5, tag_m6, tag_m7, tag_m8, tag_m9, tag_m10, tag_m11:tag [data].
 
 (* Tags for the encapsulation of the key in plaintext *)
-const tag_k0, tag_k1, tag_k2, tag_k3, tag_k4, tag_k5, tag_k6, tag_k7, tag_k8, tag_k9, tag_k10 :tag [data].
+const tag_k0, tag_k1, tag_k2, tag_k3, tag_k4, tag_k5, tag_k6, tag_k7, tag_k8, tag_k9, tag_k10 :ktag [data].
 
 (* Tags for the encapsulation of the messages in cyphertext *)
-const tag_M1, tag_M2, tag_M3, tag_M4, tag_M5, tag_M6, tag_M7, tag_M8, tag_M9, tag_M10 :tag [data].
+const tag_M1, tag_M2, tag_M3, tag_M4, tag_M5, tag_M6, tag_M7, tag_M8, tag_M9, tag_M10, tag_M11 :tag [data].
 
 (* Tags for the generation of shared_secret *)
-const tag_g2v2sav, tag_g2sc2sav, tag_g2a2su, tag_g2su2sa :tag [data].
+const tag_g2v2sav, tag_g2sc2sav, tag_g2a2su, tag_g2su2sa :etag [data].
 
 (* Tags for the asymmetric encryption of generator *)
-const tag_g2sav, tag_g2sc, tag_g2su, tag_g2sa :tag [data].
+const tag_g2sav, tag_g2sc, tag_g2su, tag_g2sa :etag [data].
 
 (* Constants needed *)
 const uri_req:bitstring.    (* URI of the request *)
@@ -88,20 +87,27 @@ fun chSymK(SymmetricKey): channel.  (* SymmetricKey channel *)
 
 
 (* Secrecy *)
-free vp_fromProver: bitstring [private].            (* VP Released by the Prover *)
+free vp_fromUser: bitstring [private].              (* VP Released by the User *)
 free resource_fromVerifier: bitstring [private].    (* Resource released by the Verifier *)
 free resource_fromApp: bitstring [private].         (* Resource released by the App *)
-const attr_did_i, attr_did_u: bitstring[private].
 
 (* Authentication *)
 
-(* User authenticate the App *)
+(* User authenticates the App *)
 event auth_UserCompletesProtocolWithApp(bitstring).
 event auth_AppSendsLastMessageToUser(bitstring).
 
-(* App authenticate the User *)
+(* App authenticates the User *)
 event auth_AppCompletesProtocolWithUser(bitstring).
 event auth_UserSendsLastMessageToApp(bitstring).
+
+(* Verifier authenticates the App *)
+event auth_VerfierCompletesProtocolWithApp(bitstring).
+event auth_AppSendsLastMessageToVerifier(bitstring).
+
+(* App authenticates the Verifier *)
+event auth_AppCompletesProtocolWithVerifier(bitstring).
+event auth_VerifierSendsLastMessageToApp(bitstring).
 
 event reachEndUser(bitstring, bitstring, bitstring, bitstring, bitstring).
 event reachEndApp(bitstring, bitstring, bitstring, bitstring, bitstring, bitstring, bitstring, bitstring, bitstring, bitstring).
@@ -113,7 +119,7 @@ event reachEndCSS(bitstring, bitstring, bitstring, bitstring, bitstring).
 (* Start Agent Macros *)
 (* --------------------------------------------------------------------------------------------------------- *)
 
-let user(talksOnlyToHonest:bool,  c_u2a:channel, DID_u:DID, u:exponent, sku:SecretKey, DID_a:DID, pka:PublicKey, g2a:G, DID_v:DID, pkv:PublicKey,  g2v:G, DID_i:DID, pki:PublicKey, g2i:G, vc:bitstring, uri_req:bitstring) =
+let user(talksOnlyToHonest:bool,  c_u2a:channel, DID_u:DID, u:exponent, sku:SecretKey, DID_a:DID, pka:PublicKey, g2a:G, DID_v:DID, pkv:PublicKey,  g2v:G, DID_i:DID, pki:PublicKey, vc:bitstring, uri:bitstring) =
     
     (* Private Definitions of exponent, SymmetricKey and nonce *)
     new su:exponent;
@@ -121,9 +127,9 @@ let user(talksOnlyToHonest:bool,  c_u2a:channel, DID_u:DID, u:exponent, sku:Secr
     new th3:nonce;
     
     in(c_u2a, (=tag_th2, th2':nonce));
-    let g2su = exp(g, su) in
+    let g2su:G = exp(g, su) in
     let m5:bitstring = (th2', th3, sig(hash_gen(g2su), sku)) in
-    let g2a2su = bit2symk((tag_g2a2su, hash_gen(exp(g2a, su)))) in
+    let g2a2su:SymmetricKey = bit2symk((tag_g2a2su, hash_gen(exp(g2a, su)))) in
     let M5:bitstring = (senc((tag_k4, k4), g2a2su), aenc((tag_g2su, g2su), pka), senc((tag_m5, m5), k4)) in
     out(c_u2a, (tag_M5, M5));
 
@@ -153,11 +159,13 @@ let user(talksOnlyToHonest:bool,  c_u2a:channel, DID_u:DID, u:exponent, sku:Secr
     let vp:bitstring = (nr', m4', vc) in
     let m9:bitstring = (vp, sig(hash(vp), sku)) in
     let M9 = (senc((tag_k8, k8), g2su2sa), senc((tag_m9, m9), k8)) in
-
-    event auth_UserCompletesProtocolWithApp(M8');
     event auth_UserSendsLastMessageToApp(M9);
     (* event reachEndUser(M5, M6', M7, M8', M9); *)
     out(c_u2a, (tag_M9, M9));
+
+    if talksOnlyToHonest then
+        event auth_UserCompletesProtocolWithApp(M8');
+        out(ch(vp), vp_fromUser);
     0.
 
 let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:DID, a:exponent, ska:SecretKey,  DID_u:DID, pku:PublicKey, g2u:G, DID_v:DID, pkv:PublicKey, g2v:G, DID_i:DID, pki:PublicKey ,uri:bitstring) =
@@ -168,9 +176,9 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:DID, a:expon
     new th1:nonce; new th2:nonce; new nr:nonce;
 
     in(c_a2v, (=tag_th0, th0':nonce));
-    let g2sav = exp(g, sav) in
+    let g2sav:G = exp(g, sav) in
     let m1:bitstring = (th0', th1, sig(hash_gen(g2sav), ska)) in
-    let g2v2sav = bit2symk((tag_g2v2sav, hash_gen(exp(g2v, sav)))) in
+    let g2v2sav:SymmetricKey = bit2symk((tag_g2v2sav, hash_gen(exp(g2v, sav)))) in
     let M1:bitstring = (senc((tag_k0, k0), g2v2sav), aenc((tag_g2sav, g2sav), pkv), senc((tag_m1, m1), k0)) in
     out(c_a2v, (tag_M1, M1));
 
@@ -178,7 +186,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:DID, a:expon
     in(c_a2v, (=tag_M2, M2':bitstring));
     let (enc_k1:bitstring, enc_g2sc:bitstring, enc_m2:bitstring) = M2' in
     let (=tag_g2sc, g2sc':G) = adec(enc_g2sc, ska) in
-    let g2sc2sav = bit2symk((tag_g2sc2sav, hash_gen(exp(g2sc', sav)))) in
+    let g2sc2sav:SymmetricKey = bit2symk((tag_g2sc2sav, hash_gen(exp(g2sc', sav)))) in
     let (=tag_k1, k1':SymmetricKey) = sdec(enc_k1, g2sc2sav) in
     let (=tag_m2, m2':bitstring) = sdec(enc_m2, k1') in
     let (th1':nonce, s2:bitstring) = m2' in
@@ -200,7 +208,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:DID, a:expon
     in(c_u2a, (=tag_M5, M5':bitstring));
     let (enc_k4:bitstring, enc_g2su:bitstring, enc_m5:bitstring) = M5' in
     let (=tag_g2su, g2su':G) = adec(enc_g2su, ska) in
-    let g2a2su = bit2symk((tag_g2a2su, hash_gen(exp(g2su', a)))) in
+    let g2a2su:SymmetricKey = bit2symk((tag_g2a2su, hash_gen(exp(g2su', a)))) in
     let (=tag_k4, k4':SymmetricKey) = sdec(enc_k4, g2a2su) in
     let (=tag_m5, m5':bitstring) = sdec(enc_m5, k4') in
     let (th2':nonce, th3':nonce, s3:bitstring) = m5' in
@@ -209,7 +217,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:DID, a:expon
 
     let g2sa = exp(g, sa) in
     let m6:bitstring = (th3', sig(hash_gen(g2sa), ska)) in
-    let g2su2sa = bit2symk((tag_g2su2sa, hash_gen(exp(g2su', sa)))) in
+    let g2su2sa:SymmetricKey = bit2symk((tag_g2su2sa, hash_gen(exp(g2su', sa)))) in
     let M6:bitstring = (senc((tag_k5, k5), g2su2sa), aenc((tag_g2sa, g2sa), pku), senc((tag_m6, m6), k5)) in
     out(c_u2a, (tag_M6, M6));
 
@@ -232,38 +240,47 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:DID, a:expon
     let (nr':nonce, m4'':bitstring, vc':bitstring) = vp' in
     if check(hash(vp'), s6, pku) then
     if nr' = nr then
-    event auth_AppCompletesProtocolWithUser(M9');
 
     let m10 = (m9', sig(hash(m9'), ska)) in
     let M10 = (senc((tag_k9, k9),g2sc2sav), senc((tag_m10, m10), k9)) in
     (* event reachEndApp(M1, M2', M3, M4', M5', M6, M7', M8, M9', M10); *)
+    event auth_AppSendsLastMessageToVerifier(M10);
     out(c_a2v, (tag_M10, M10));
 
+    in(c_a2v, (=tag_M11, M11':bitstring));
+    let (enc_k10:bitstring, enc_m11:bitstring) = M11' in
+    let (=tag_k10, k10':SymmetricKey) = sdec(enc_k10, g2sc2sav) in
+    let (=tag_m11, m11':bitstring) = sdec(enc_m11, k10') in
+    let (resource':bitstring) = m11' in
+    if talksOnlyToHonest then
+        event auth_AppCompletesProtocolWithUser(M9')|
+        event auth_AppCompletesProtocolWithVerifier(M11')|
+        out(ch(m11'), resource_fromApp);
     
     0.
 
-let verifier(talksOnlyToHonest:bool,  c_a2v:channel, DID_v:DID, v:exponent, skv:SecretKey, DID_u:DID, pku:PublicKey, g2u:G, DID_a:DID, pka:PublicKey,  g2a:G, DID_i:DID, pki:PublicKey, claims:bitstring, uri_req:bitstring) =
+let verifier(talksOnlyToHonest:bool,  c_a2v:channel, DID_v:DID, v:exponent, skv:SecretKey, DID_u:DID, pku:PublicKey, g2u:G, DID_a:DID, pka:PublicKey,  g2a:G, DID_i:DID, pki:PublicKey, claims:bitstring, uri:bitstring) =
 
     (* Private Definitions of exponent, SymmetricKey and nonce *)
     new sc:exponent;
     new k1:SymmetricKey; new k3:SymmetricKey; new k10:SymmetricKey;
     new th0:nonce; new nc:nonce;
-    let rule = (DID_i, DID_v, DID_u, DID_a, uri_req) in
+    let rule = (DID_i, DID_v, DID_u, DID_a, uri) in
     let attr = (DID_u, DID_i, claims) in
 
     out(c_a2v, (tag_th0, th0)); 
     in(c_a2v, (=tag_M1, M1':bitstring));
     let (enc_k0:bitstring, enc_g2sav:bitstring, enc_m1:bitstring) = M1' in
     let (=tag_g2sav, g2sav':G) = adec(enc_g2sav, skv) in
-    let g2v2sav = bit2symk((tag_g2v2sav, hash_gen(exp(g2sav', v)))) in
+    let g2v2sav:SymmetricKey = bit2symk((tag_g2v2sav, hash_gen(exp(g2sav', v)))) in
     let (=tag_k0, k0':SymmetricKey) = sdec(enc_k0, g2v2sav) in
     let (=tag_m1, m1':bitstring) = sdec(enc_m1, k0') in
     let (th0':nonce, th1':nonce, s1:bitstring) = m1' in
     if check(hash_gen(g2sav'), s1, pka) then
     if (th0' = th0) then
 
-    let g2sc = exp(g, sc) in
-    let g2sc2sav = bit2symk((tag_g2sc2sav, hash_gen(exp(g2sav', sc)))) in
+    let g2sc:G = exp(g, sc) in
+    let g2sc2sav:SymmetricKey = bit2symk((tag_g2sc2sav, hash_gen(exp(g2sav', sc)))) in
     let m2:bitstring = (th1', sig(hash_gen(g2sc), skv)) in
     let M2:bitstring = (senc((tag_k1, k1), g2sc2sav), aenc((tag_g2sc, g2sc), pka), senc((tag_m2, m2), k1)) in
     out(c_a2v, (tag_M2, M2));
@@ -274,7 +291,7 @@ let verifier(talksOnlyToHonest:bool,  c_a2v:channel, DID_v:DID, v:exponent, skv:
     let (=tag_m3, m3':bitstring) = sdec(enc_m3, k2') in
     if (m3' = rule) then
 
-    let m4:bitstring = (attr, uri_req, nc) in
+    let m4:bitstring = (attr, uri, nc) in
     let M4:bitstring = (senc((tag_k3, k3), g2sc2sav), senc((tag_m4, m4), k3)) in
     out(c_a2v, (tag_M4, M4));
     
@@ -294,19 +311,36 @@ let verifier(talksOnlyToHonest:bool,  c_a2v:channel, DID_v:DID, v:exponent, skv:
     let (attr''':bitstring, DID_i''':DID, DID_u''':DID) =vc_claims in
     if (attr''' = attr) then
 
+
+    new resource:bitstring;
+    let m11:bitstring = resource in
+    let M11:bitstring = (senc((tag_k10, k10), g2sc2sav), senc((tag_m11, m11), k10)) in
+    event auth_VerifierSendsLastMessageToApp(M11);
+    out(c_a2v, (tag_M11, M11));
     (* event reachEndCSS(M1', M2, M3', M4, M10'); *)
 
+    if talksOnlyToHonest then
+        event auth_VerfierCompletesProtocolWithApp(M10')|
+        out(ch(resource), resource_fromVerifier);
     0.
 
 (* SECRECY *)
 
+query attacker(vp_fromUser).
+query attacker(resource_fromApp).
+query attacker(resource_fromVerifier).
+
 query M9:bitstring;
       event(auth_AppCompletesProtocolWithUser(M9)) ==> event(auth_UserSendsLastMessageToApp(M9)).
-            
+      
+query M8:bitstring;
+      event(auth_UserCompletesProtocolWithApp(M8)) ==> event(auth_AppSendsLastMessageToUser(M8)).
 
-(* It returns cannot be proven
- query M8:bitstring;
-      event(auth_UserCompletesProtocolWithApp(M8)) ==> event(auth_AppSendsLastMessageToUser(M8)). *)
+query M11:bitstring;
+    event (auth_AppCompletesProtocolWithVerifier(M11)) ==> event(auth_VerifierSendsLastMessageToApp(M11)).
+
+query M10:bitstring;
+    event (auth_VerfierCompletesProtocolWithApp(M10)) ==> event(auth_AppSendsLastMessageToVerifier(M10)).
 
 (* (* Give me false, this should be okay because all the three events are executed *)
 query M1:bitstring, M2:bitstring, M3:bitstring, M4:bitstring, M5:bitstring, M6:bitstring, M7:bitstring, M8:bitstring, M9:bitstring, M10:bitstring;
@@ -337,7 +371,6 @@ process (*use root process for setup *)
     out(c, exp(g, u));
     out(c, exp(g, a));
     out(c, exp(g, v));
-    out(c, exp(g, i));
     
     (* Advertise Public Keys *)
     out(c, pk(sku));
@@ -367,7 +400,7 @@ process (*use root process for setup *)
 
         (!verifier(true,  c_a2v,  DID_v, v, skv, DID_u, pk(sku), exp(g,u), DID_a, pk(ska),  exp(g,a), DID_i, pk(ski), claims, uri_req)) |
         (!app(true, c_a2v, c_u2a, DID_a, a, ska, DID_u, pk(sku), exp(g,u), DID_v, pk(skv), exp(g,v), DID_i, pk(ski), uri_req)) |
-        (!user(true,  c_u2a, DID_u, u, sku, DID_a, pk(ska), exp(g,a), DID_v, pk(skv),  exp(g,v), DID_i, pk(ski), exp(g, i), vc, uri_req))
+        (!user(true,  c_u2a, DID_u, u, sku, DID_a, pk(ska), exp(g,a), DID_v, pk(skv),  exp(g,v), DID_i, pk(ski), vc, uri_req))
     
     )
 
