@@ -122,14 +122,14 @@ event reachEndCSS(bitstring, bitstring, bitstring, bitstring, bitstring).
 let user(talksOnlyToHonest:bool,  c_u2a:channel, DID_u:DID, u:exponent, sku:SecretKey, DID_a:DID, pka:PublicKey, g2a:G, DID_v:DID, pkv:PublicKey,  g2v:G, DID_i:DID, pki:PublicKey, vc:bitstring, uri:bitstring) =
     
     (* Private Definitions of exponent, SymmetricKey and nonce *)
-    new su:exponent;
-    new k4:SymmetricKey; new k6:SymmetricKey; new k8:SymmetricKey;
-    new th3:nonce;
     
     in(c_u2a, (=tag_th2, th2':nonce));
+    new su:exponent;
     let g2su:G = exp(g, su) in
+    new th3:nonce;
     let m5:bitstring = (th2', th3, sig(hash_gen(g2su), sku)) in
     let g2a2su:SymmetricKey = bit2symk((tag_g2a2su, hash_gen(exp(g2a, su)))) in
+    new k4:SymmetricKey;
     let M5:bitstring = (senc((tag_k4, k4), g2a2su), aenc((tag_g2su, g2su), pka), senc((tag_m5, m5), k4)) in
     out(c_u2a, (tag_M5, M5));
 
@@ -144,6 +144,7 @@ let user(talksOnlyToHonest:bool,  c_u2a:channel, DID_u:DID, u:exponent, sku:Secr
     if (th3' = th3) then
 
     new m7:bitstring;
+    new k6:SymmetricKey;
     let M7:bitstring = (senc((tag_k6, k6),g2su2sa), senc((tag_m7, m7), k6)) in
     out(c_u2a, (tag_M7, M7));
 
@@ -158,6 +159,7 @@ let user(talksOnlyToHonest:bool,  c_u2a:channel, DID_u:DID, u:exponent, sku:Secr
 
     let vp:bitstring = (nr', m4', vc) in
     let m9:bitstring = (vp, sig(hash(vp), sku)) in
+    new k8:SymmetricKey;
     let M9 = (senc((tag_k8, k8), g2su2sa), senc((tag_m9, m9), k8)) in
     event auth_UserSendsLastMessageToApp(M9);
     (* event reachEndUser(M5, M6', M7, M8', M9); *)
@@ -171,17 +173,16 @@ let user(talksOnlyToHonest:bool,  c_u2a:channel, DID_u:DID, u:exponent, sku:Secr
 let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:DID, a:exponent, ska:SecretKey,  DID_u:DID, pku:PublicKey, g2u:G, DID_v:DID, pkv:PublicKey, g2v:G, DID_i:DID, pki:PublicKey ,uri:bitstring) =
     
     (* Private Definitions of exponent, SymmetricKey and nonce *)
-    new sav:exponent; new sa:exponent;
-    new k0:SymmetricKey; new k2:SymmetricKey; new k5:SymmetricKey; new k7:SymmetricKey; new k9:SymmetricKey;
-    new th1:nonce; new th2:nonce; new nr:nonce;
+    new sav:exponent; 
 
     in(c_a2v, (=tag_th0, th0':nonce));
     let g2sav:G = exp(g, sav) in
+    new th1:nonce; 
     let m1:bitstring = (th0', th1, sig(hash_gen(g2sav), ska)) in
     let g2v2sav:SymmetricKey = bit2symk((tag_g2v2sav, hash_gen(exp(g2v, sav)))) in
+    new k0:SymmetricKey; 
     let M1:bitstring = (senc((tag_k0, k0), g2v2sav), aenc((tag_g2sav, g2sav), pkv), senc((tag_m1, m1), k0)) in
     out(c_a2v, (tag_M1, M1));
-
 
     in(c_a2v, (=tag_M2, M2':bitstring));
     let (enc_k1:bitstring, enc_g2sc:bitstring, enc_m2:bitstring) = M2' in
@@ -193,6 +194,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:DID, a:expon
     if check(hash_gen(g2sc'), s2, pkv) then
     if (th1' = th1) then
 
+    new k2:SymmetricKey; 
     let m3:bitstring = (DID_i, DID_v, DID_u, DID_a, uri) in
     let M3:bitstring = (senc((tag_k2, k2), g2sc2sav), senc((tag_m3, m3), k2)) in 
     out(c_a2v, (tag_M3, M3));
@@ -204,6 +206,8 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:DID, a:expon
     let (attr':bitstring, uri':bitstring, nc':nonce) = m4' in
     if (uri' = uri) then
     
+    
+    new th2:nonce;
     out(c_u2a, (tag_th2, th2));
     in(c_u2a, (=tag_M5, M5':bitstring));
     let (enc_k4:bitstring, enc_g2su:bitstring, enc_m5:bitstring) = M5' in
@@ -214,10 +218,11 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:DID, a:expon
     let (th2':nonce, th3':nonce, s3:bitstring) = m5' in
     if check(hash_gen(g2su'), s3, pku) then
     if (th2' = th2) then
-
+    new sa:exponent;
     let g2sa = exp(g, sa) in
     let m6:bitstring = (th3', sig(hash_gen(g2sa), ska)) in
     let g2su2sa:SymmetricKey = bit2symk((tag_g2su2sa, hash_gen(exp(g2su', sa)))) in
+    new k5:SymmetricKey;
     let M6:bitstring = (senc((tag_k5, k5), g2su2sa), aenc((tag_g2sa, g2sa), pku), senc((tag_m6, m6), k5)) in
     out(c_u2a, (tag_M6, M6));
 
@@ -225,9 +230,10 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:DID, a:expon
     let (enc_k6:bitstring, enc_m7:bitstring) = M7' in
     let (=tag_k6, k6':SymmetricKey) = sdec(enc_k6, g2su2sa) in
     let (=tag_m7, m7':bitstring) = sdec(enc_m7, k6') in
-
+    new nr:nonce;
     let vpr2 = (m4', nr) in
     let m8 = (vpr2, sig(hash(vpr2), ska)) in
+    new k7:SymmetricKey;
     let M8 = (senc((tag_k7, k7), g2su2sa), senc((tag_m8, m8), k7)) in
     event auth_AppSendsLastMessageToUser(M8);
     out(c_u2a, (tag_M8, M8));
@@ -242,6 +248,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:DID, a:expon
     if nr' = nr then
 
     let m10 = (m9', sig(hash(m9'), ska)) in
+    new k9:SymmetricKey;
     let M10 = (senc((tag_k9, k9),g2sc2sav), senc((tag_m10, m10), k9)) in
     (* event reachEndApp(M1, M2', M3, M4', M5', M6, M7', M8, M9', M10); *)
     event auth_AppSendsLastMessageToVerifier(M10);
@@ -262,12 +269,9 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:DID, a:expon
 let verifier(talksOnlyToHonest:bool,  c_a2v:channel, DID_v:DID, v:exponent, skv:SecretKey, DID_u:DID, pku:PublicKey, g2u:G, DID_a:DID, pka:PublicKey,  g2a:G, DID_i:DID, pki:PublicKey, claims:bitstring, uri:bitstring) =
 
     (* Private Definitions of exponent, SymmetricKey and nonce *)
-    new sc:exponent;
-    new k1:SymmetricKey; new k3:SymmetricKey; new k10:SymmetricKey;
-    new th0:nonce; new nc:nonce;
     let rule = (DID_i, DID_v, DID_u, DID_a, uri) in
     let attr = (DID_u, DID_i, claims) in
-
+    new th0:nonce; 
     out(c_a2v, (tag_th0, th0)); 
     in(c_a2v, (=tag_M1, M1':bitstring));
     let (enc_k0:bitstring, enc_g2sav:bitstring, enc_m1:bitstring) = M1' in
@@ -279,9 +283,11 @@ let verifier(talksOnlyToHonest:bool,  c_a2v:channel, DID_v:DID, v:exponent, skv:
     if check(hash_gen(g2sav'), s1, pka) then
     if (th0' = th0) then
 
+    new sc:exponent;
     let g2sc:G = exp(g, sc) in
     let g2sc2sav:SymmetricKey = bit2symk((tag_g2sc2sav, hash_gen(exp(g2sav', sc)))) in
     let m2:bitstring = (th1', sig(hash_gen(g2sc), skv)) in
+    new k1:SymmetricKey;
     let M2:bitstring = (senc((tag_k1, k1), g2sc2sav), aenc((tag_g2sc, g2sc), pka), senc((tag_m2, m2), k1)) in
     out(c_a2v, (tag_M2, M2));
 
@@ -290,8 +296,9 @@ let verifier(talksOnlyToHonest:bool,  c_a2v:channel, DID_v:DID, v:exponent, skv:
     let (=tag_k2, k2':SymmetricKey) = sdec(enc_k2, g2sc2sav) in
     let (=tag_m3, m3':bitstring) = sdec(enc_m3, k2') in
     if (m3' = rule) then
-
+    new nc:nonce;
     let m4:bitstring = (attr, uri, nc) in
+    new k3:SymmetricKey;
     let M4:bitstring = (senc((tag_k3, k3), g2sc2sav), senc((tag_m4, m4), k3)) in
     out(c_a2v, (tag_M4, M4));
     
@@ -314,6 +321,7 @@ let verifier(talksOnlyToHonest:bool,  c_a2v:channel, DID_v:DID, v:exponent, skv:
 
     new resource:bitstring;
     let m11:bitstring = resource in
+    new k10:SymmetricKey;
     let M11:bitstring = (senc((tag_k10, k10), g2sc2sav), senc((tag_m11, m11), k10)) in
     event auth_VerifierSendsLastMessageToApp(M11);
     out(c_a2v, (tag_M11, M11));
