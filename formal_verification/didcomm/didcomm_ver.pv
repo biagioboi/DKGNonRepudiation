@@ -29,8 +29,8 @@ type nonce.         (* Nonce *)
 type tag.   (* Tag for message *)
 type ktag.  (* Tag for symmetric key *)
 type etag.  (* Tag for exponent *)
-set preciseActions = trueWithoutArgsInNames.
-set movenew = true.
+(*set preciseActions = trueWithoutArgsInNames.
+%set movenew = true. *)
 
 (* Tags for the wrapping of the nonce in plaintext *)
 const tag_th0, tag_th2 :tag [data].
@@ -328,9 +328,9 @@ let verifier(talksOnlyToHonest:bool,  c_a2v:channel, DID_v:DID, v:exponent, skv:
 
 (* SECRECY *)
 
-(* query attacker(vp_fromUser).
+query attacker(vp_fromUser).
 query attacker(resource_fromApp).
-query attacker(resource_fromVerifier).*)
+query attacker(resource_fromVerifier).
 
 query M9:bitstring;
       event(auth_AppCompletesProtocolWithUser(M9)) ==> event(auth_UserSendsLastMessageToApp(M9)).
