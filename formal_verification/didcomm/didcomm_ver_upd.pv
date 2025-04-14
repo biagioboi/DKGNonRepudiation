@@ -107,8 +107,15 @@ event auth_AppCompletesProtocolWithUser(bitstring).
 event auth_UserSendsLastMessageToApp(bitstring).
 
 (* Verifier authenticates the App *)
-event auth_VerfierCompletesProtocolWithApp(bitstring).
-event auth_AppSendsLastMessageToVerifier(bitstring).
+event auth_VerfierCompletesProtocolWithApp1_1(bitstring).
+event auth_VerfierCompletesProtocolWithApp2_1(bitstring).
+event auth_AppSendsLastMessageToVerifier1_1(bitstring).
+event auth_AppSendsLastMessageToVerifier2_1(bitstring).
+
+event auth_VerfierCompletesProtocolWithApp1_2(bitstring).
+event auth_VerfierCompletesProtocolWithApp2_2(bitstring).
+event auth_AppSendsLastMessageToVerifier1_2(bitstring).
+event auth_AppSendsLastMessageToVerifier2_2(bitstring).
 
 (* App authenticates the Verifier *)
 event auth_AppCompletesProtocolWithVerifier(bitstring).
@@ -165,12 +172,12 @@ let user(talksOnlyToHonest:bool,  c_u2a:channel, DID_u:DID, u:exponent, sku:Secr
     let vp:bitstring = (nr', m4', vc) in
     let m9:bitstring = (vp, sig(hash(vp), sku)) in
     let M9 = (senc((tag_k8, k8), g2su2sa), senc((tag_m9, m9), k8)) in
-    event auth_UserSendsLastMessageToApp(senc((tag_m9, m9), k8));
-    (* event reachEndUser(M5, M6', M7, M8', M9); *)
+    (*event auth_UserSendsLastMessageToApp(senc((tag_m9, m9), k8));
+     event reachEndUser(M5, M6', M7, M8', M9); *)
     out(c_u2a, (tag_M9, M9));
 
     if talksOnlyToHonest then
-        event auth_UserCompletesProtocolWithApp(enc_m8);
+        (*event auth_UserCompletesProtocolWithApp(enc_m8);*)
         out(ch(vp), vp_fromUser);
     0.
 
@@ -235,7 +242,7 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:DID, a:expon
     let vpr2 = (m4', nr) in
     let m8 = (vpr2, sig(hash(vpr2), ska)) in
     let M8 = (senc((tag_k7, k7), g2su2sa), senc((tag_m8, m8), k7)) in
-    event auth_AppSendsLastMessageToUser(senc((tag_m8, m8), k7));
+    (*event auth_AppSendsLastMessageToUser(senc((tag_m8, m8), k7));*)
     out(c_u2a, (tag_M8, M8));
 
     in(c_u2a, (=tag_M9, M9':bitstring));
@@ -250,7 +257,10 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:DID, a:expon
     let m10 = (m9', sig(hash(m9'), ska)) in
     let M10 = (senc((tag_k9, k9),g2sc2sav), senc((tag_m10, m10), k9)) in
     (* event reachEndApp(M1, M2', M3, M4', M5', M6, M7', M8, M9', M10); *)
-    event auth_AppSendsLastMessageToVerifier(senc((tag_m10, m10), k9));
+    event auth_AppSendsLastMessageToVerifier1_1(k3_enc);
+    event auth_AppSendsLastMessageToVerifier2_1(m4_enc);
+    event auth_AppSendsLastMessageToVerifier1_2(senc((tag_k9, k9),g2sc2sav));
+    event auth_AppSendsLastMessageToVerifier2_2(senc((tag_m10, m10), k9));
     out(c_a2v, (tag_M10, M10));
 
     in(c_a2v, (=tag_M11, M11':bitstring));
@@ -259,8 +269,8 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:DID, a:expon
     let (=tag_m11, m11':bitstring) = sdec(enc_m11, k10') in
     let (resource':bitstring) = m11' in
     if talksOnlyToHonest then
-        event auth_AppCompletesProtocolWithUser(enc_m9)|
-        event auth_AppCompletesProtocolWithVerifier(enc_m11)|
+        (*event auth_AppCompletesProtocolWithUser(enc_m9)|
+        event auth_AppCompletesProtocolWithVerifier(enc_m11)|*)
         out(ch(m11'), resource_fromApp);
     
     0.
@@ -321,33 +331,42 @@ let verifier(talksOnlyToHonest:bool,  c_a2v:channel, DID_v:DID, v:exponent, skv:
     new resource:bitstring;
     let m11:bitstring = resource in
     let M11:bitstring = (senc((tag_k10, k10), g2sc2sav), senc((tag_m11, m11), k10)) in
-    event auth_VerifierSendsLastMessageToApp(senc((tag_m11, m11), k10));
+    (* event auth_VerifierSendsLastMessageToApp(senc((tag_m11, m11), k10)); *)
     out(c_a2v, (tag_M11, M11));
     (* event reachEndCSS(M1', M2, M3', M4, M10'); *)
 
        (*event reach;*)
     if talksOnlyToHonest then
-        event auth_VerfierCompletesProtocolWithApp(enc_m10);
+
+        event auth_VerfierCompletesProtocolWithApp1_1(senc((tag_k3, k3), g2sc2sav));
+        event auth_VerfierCompletesProtocolWithApp2_1(senc((tag_m4, m4), k3));
+        event auth_VerfierCompletesProtocolWithApp1_2(enc_k9);
+        event auth_VerfierCompletesProtocolWithApp2_2(enc_m10);
         out(ch(resource), resource_fromVerifier);
     0.
 
 (* SECRECY *)
 
-query attacker(vp_fromUser).
+(*query attacker(vp_fromUser).
 query attacker(resource_fromApp).
-query attacker(resource_fromVerifier).
+query attacker(resource_fromVerifier). *)
 
-query M9:bitstring;
+(*query M9:bitstring;
       event(auth_AppCompletesProtocolWithUser(M9)) ==> event(auth_UserSendsLastMessageToApp(M9)).
       
 query M8:bitstring;
       event(auth_UserCompletesProtocolWithApp(M8)) ==> event(auth_AppSendsLastMessageToUser(M8)).
 
 query M11:bitstring;
-    event (auth_AppCompletesProtocolWithVerifier(M11)) ==> event(auth_VerifierSendsLastMessageToApp(M11)).
+    event (auth_AppCompletesProtocolWithVerifier(M11)) ==> event(auth_VerifierSendsLastMessageToApp(M11)).*)
 
-query  M10:bitstring;
-    event (auth_VerfierCompletesProtocolWithApp(M10)) ==> event(auth_AppSendsLastMessageToVerifier( M10)).
+(* This might be used for checking the authentication *)
+query K9:bitstring, M10:bitstring;
+    (event(auth_VerfierCompletesProtocolWithApp1_2(K9)) && event(auth_VerfierCompletesProtocolWithApp1_2(M10)))==> (event(auth_AppSendsLastMessageToVerifier1_2(K9)) && event(auth_AppSendsLastMessageToVerifier1_2(M10))).
+
+(* This might be used for checking the agreement *)
+query  K3:bitstring, K9:bitstring, M4:bitstring, M10:bitstring;
+    (event (auth_VerfierCompletesProtocolWithApp1_1(K3)) && event(auth_VerfierCompletesProtocolWithApp1_1(M4)) && event (auth_VerfierCompletesProtocolWithApp1_2(K9)) && event(auth_VerfierCompletesProtocolWithApp1_2(M10))) ==> (event(auth_AppSendsLastMessageToVerifier1_1(K3)) && event(auth_AppSendsLastMessageToVerifier1_1(M4)) && event(auth_AppSendsLastMessageToVerifier1_2(K9)) && event(auth_AppSendsLastMessageToVerifier1_2(M10))).
 
 (* (* Give me false, this should be okay because all the three events are executed *)
 query M1:bitstring, M2:bitstring, M3:bitstring, M4:bitstring, M5:bitstring, M6:bitstring, M7:bitstring, M8:bitstring, M9:bitstring, M10:bitstring;
