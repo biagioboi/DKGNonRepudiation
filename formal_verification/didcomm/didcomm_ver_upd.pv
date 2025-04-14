@@ -362,11 +362,11 @@ query M11:bitstring;
 
 (* This might be used for checking the authentication *)
 query K9:bitstring, M10:bitstring;
-    (event(auth_VerfierCompletesProtocolWithApp1_2(K9)) && event(auth_VerfierCompletesProtocolWithApp1_2(M10)))==> (event(auth_AppSendsLastMessageToVerifier1_2(K9)) && event(auth_AppSendsLastMessageToVerifier1_2(M10))).
+    (event(auth_VerfierCompletesProtocolWithApp2_1(K9)) && event(auth_VerfierCompletesProtocolWithApp2_2(M10)))==> (event(auth_AppSendsLastMessageToVerifier2_1(K9)) && event(auth_AppSendsLastMessageToVerifier2_2(M10))).
 
 (* This might be used for checking the agreement *)
 query  K3:bitstring, K9:bitstring, M4:bitstring, M10:bitstring;
-    (event (auth_VerfierCompletesProtocolWithApp1_1(K3)) && event(auth_VerfierCompletesProtocolWithApp1_1(M4)) && event (auth_VerfierCompletesProtocolWithApp1_2(K9)) && event(auth_VerfierCompletesProtocolWithApp1_2(M10))) ==> (event(auth_AppSendsLastMessageToVerifier1_1(K3)) && event(auth_AppSendsLastMessageToVerifier1_1(M4)) && event(auth_AppSendsLastMessageToVerifier1_2(K9)) && event(auth_AppSendsLastMessageToVerifier1_2(M10))).
+    (event (auth_VerfierCompletesProtocolWithApp1_1(K3)) && event(auth_VerfierCompletesProtocolWithApp1_2(M4)) && event (auth_VerfierCompletesProtocolWithApp2_1(K9)) && event(auth_VerfierCompletesProtocolWithApp2_2(M10))) ==> (event(auth_AppSendsLastMessageToVerifier1_1(K3)) && event(auth_AppSendsLastMessageToVerifier1_2(M4)) && event(auth_AppSendsLastMessageToVerifier2_1(K9)) && event(auth_AppSendsLastMessageToVerifier2_2(M10))).
 
 (* (* Give me false, this should be okay because all the three events are executed *)
 query M1:bitstring, M2:bitstring, M3:bitstring, M4:bitstring, M5:bitstring, M6:bitstring, M7:bitstring, M8:bitstring, M9:bitstring, M10:bitstring;
