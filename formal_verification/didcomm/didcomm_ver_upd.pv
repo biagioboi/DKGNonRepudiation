@@ -99,27 +99,36 @@ free resource_fromApp: bitstring [private].         (* Resource released by the 
 (* Authentication *)
 
 (* User authenticates the App *)
-event auth_UserCompletesProtocolWithApp(bitstring).
-event auth_AppSendsLastMessageToUser(bitstring).
+event auth_UserCompletesProtocolWithAppKey(bitstring).
+event auth_UserCompletesProtocolWithAppMessage(bitstring).
+event auth_AppSendsLastMessageToUserKey(bitstring).
+event auth_AppSendsLastMessageToUserMessage(bitstring).
 
 (* App authenticates the User *)
-event auth_AppCompletesProtocolWithUser(bitstring).
-event auth_UserSendsLastMessageToApp(bitstring).
+event auth_AppCompletesProtocolWithUserKey(bitstring).
+event auth_AppCompletesProtocolWithUserMessage(bitstring).
+event auth_UserSendsLastMessageToAppKey(bitstring).
+event auth_UserSendsLastMessageToAppMessage(bitstring).
 
 (* Verifier authenticates the App *)
-event auth_VerfierCompletesProtocolWithApp1_1(bitstring).
-event auth_VerfierCompletesProtocolWithApp2_1(bitstring).
-event auth_AppSendsLastMessageToVerifier1_1(bitstring).
-event auth_AppSendsLastMessageToVerifier2_1(bitstring).
-
-event auth_VerfierCompletesProtocolWithApp1_2(bitstring).
-event auth_VerfierCompletesProtocolWithApp2_2(bitstring).
-event auth_AppSendsLastMessageToVerifier1_2(bitstring).
-event auth_AppSendsLastMessageToVerifier2_2(bitstring).
+event auth_VerfierCompletesProtocolWithAppKey(bitstring).
+event auth_VerfierCompletesProtocolWithAppMessage(bitstring).
+event auth_AppSendsLastMessageToVerifierKey(bitstring).
+event auth_AppSendsLastMessageToVerifierMessage(bitstring).
 
 (* App authenticates the Verifier *)
-event auth_AppCompletesProtocolWithVerifier(bitstring).
-event auth_VerifierSendsLastMessageToApp(bitstring).
+event auth_AppCompletesProtocolWithVerifierKey(bitstring).
+event auth_AppCompletesProtocolWithVerifierMessage(bitstring).
+event auth_VerifierSendsLastMessageToAppKey(bitstring).
+event auth_VerifierSendsLastMessageToAppMessage(bitstring).
+
+
+(* For Agreement*)
+(*event auth_VerfierCompletesProtocolWithApp1_2(bitstring).
+event auth_VerfierCompletesProtocolWithApp2_2(bitstring).
+event auth_AppSendsLastMessageToVerifier1_2(bitstring).
+event auth_AppSendsLastMessageToVerifier2_2(bitstring).*)
+
 event reach.
 event reachEndUser(bitstring, bitstring, bitstring, bitstring, bitstring).
 event reachEndApp(bitstring, bitstring, bitstring, bitstring, bitstring, bitstring, bitstring, bitstring, bitstring, bitstring).
@@ -172,12 +181,14 @@ let user(talksOnlyToHonest:bool,  c_u2a:channel, DID_u:DID, u:exponent, sku:Secr
     let vp:bitstring = (nr', m4', vc) in
     let m9:bitstring = (vp, sig(hash(vp), sku)) in
     let M9 = (senc((tag_k8, k8), g2su2sa), senc((tag_m9, m9), k8)) in
-    (*event auth_UserSendsLastMessageToApp(senc((tag_m9, m9), k8));
-     event reachEndUser(M5, M6', M7, M8', M9); *)
+    event auth_UserSendsLastMessageToAppMessage(senc((tag_m9, m9), k8));
+    event auth_UserSendsLastMessageToAppKey(senc((tag_k8, k8), g2su2sa));
+     (*event reachEndUser(M5, M6', M7, M8', M9); *)
     out(c_u2a, (tag_M9, M9));
 
     if talksOnlyToHonest then
-        (*event auth_UserCompletesProtocolWithApp(enc_m8);*)
+        event auth_UserCompletesProtocolWithAppMessage(enc_m8);
+        event auth_UserCompletesProtocolWithAppKey(enc_k7);
         out(ch(vp), vp_fromUser);
     0.
 
@@ -242,7 +253,8 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:DID, a:expon
     let vpr2 = (m4', nr) in
     let m8 = (vpr2, sig(hash(vpr2), ska)) in
     let M8 = (senc((tag_k7, k7), g2su2sa), senc((tag_m8, m8), k7)) in
-    (*event auth_AppSendsLastMessageToUser(senc((tag_m8, m8), k7));*)
+    event auth_AppSendsLastMessageToUserMessage(senc((tag_m8, m8), k7));
+    event auth_AppSendsLastMessageToUserKey(senc((tag_k7, k7), g2su2sa));
     out(c_u2a, (tag_M8, M8));
 
     in(c_u2a, (=tag_M9, M9':bitstring));
@@ -257,10 +269,8 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:DID, a:expon
     let m10 = (m9', sig(hash(m9'), ska)) in
     let M10 = (senc((tag_k9, k9),g2sc2sav), senc((tag_m10, m10), k9)) in
     (* event reachEndApp(M1, M2', M3, M4', M5', M6, M7', M8, M9', M10); *)
-    event auth_AppSendsLastMessageToVerifier1_1(k3_enc);
-    event auth_AppSendsLastMessageToVerifier2_1(m4_enc);
-    event auth_AppSendsLastMessageToVerifier1_2(senc((tag_k9, k9),g2sc2sav));
-    event auth_AppSendsLastMessageToVerifier2_2(senc((tag_m10, m10), k9));
+    event auth_AppSendsLastMessageToVerifierKey(k3_enc);
+    event auth_AppSendsLastMessageToVerifierMessage(m4_enc);
     out(c_a2v, (tag_M10, M10));
 
     in(c_a2v, (=tag_M11, M11':bitstring));
@@ -269,8 +279,10 @@ let app(talksOnlyToHonest:bool, c_a2v:channel, c_u2a:channel, DID_a:DID, a:expon
     let (=tag_m11, m11':bitstring) = sdec(enc_m11, k10') in
     let (resource':bitstring) = m11' in
     if talksOnlyToHonest then
-        (*event auth_AppCompletesProtocolWithUser(enc_m9)|
-        event auth_AppCompletesProtocolWithVerifier(enc_m11)|*)
+        event auth_AppCompletesProtocolWithUserMessage(enc_m9);
+        event auth_AppCompletesProtocolWithUserKey(enc_k8);
+        event auth_AppCompletesProtocolWithVerifierMessage(enc_m11);
+        event auth_AppCompletesProtocolWithVerifierKey(enc_k10);
         out(ch(m11'), resource_fromApp);
     
     0.
@@ -331,25 +343,23 @@ let verifier(talksOnlyToHonest:bool,  c_a2v:channel, DID_v:DID, v:exponent, skv:
     new resource:bitstring;
     let m11:bitstring = resource in
     let M11:bitstring = (senc((tag_k10, k10), g2sc2sav), senc((tag_m11, m11), k10)) in
-    (* event auth_VerifierSendsLastMessageToApp(senc((tag_m11, m11), k10)); *)
+    event auth_VerifierSendsLastMessageToAppMessage(senc((tag_m11, m11), k10));
+    event auth_VerifierSendsLastMessageToAppKey(senc((tag_k10, k10), g2sc2sav));
     out(c_a2v, (tag_M11, M11));
     (* event reachEndCSS(M1', M2, M3', M4, M10'); *)
 
        (*event reach;*)
     if talksOnlyToHonest then
 
-        event auth_VerfierCompletesProtocolWithApp1_1(senc((tag_k3, k3), g2sc2sav));
-        event auth_VerfierCompletesProtocolWithApp2_1(senc((tag_m4, m4), k3));
-        event auth_VerfierCompletesProtocolWithApp1_2(enc_k9);
-        event auth_VerfierCompletesProtocolWithApp2_2(enc_m10);
+        event auth_VerfierCompletesProtocolWithAppKey(senc((tag_k3, k3), g2sc2sav));
+        event auth_VerfierCompletesProtocolWithAppMessage(senc((tag_m4, m4), k3));
         out(ch(resource), resource_fromVerifier);
     0.
 
 (* SECRECY *)
-
-(*query attacker(vp_fromUser).
+query attacker(vp_fromUser).
 query attacker(resource_fromApp).
-query attacker(resource_fromVerifier). *)
+query attacker(resource_fromVerifier).
 
 (*query M9:bitstring;
       event(auth_AppCompletesProtocolWithUser(M9)) ==> event(auth_UserSendsLastMessageToApp(M9)).
@@ -361,12 +371,27 @@ query M11:bitstring;
     event (auth_AppCompletesProtocolWithVerifier(M11)) ==> event(auth_VerifierSendsLastMessageToApp(M11)).*)
 
 (* This might be used for checking the authentication *)
+
+(* User authenticates the App *)
+query K7:bitstring, M8:bitstring;
+    (event(auth_UserCompletesProtocolWithAppKey(K7)) && event(auth_UserCompletesProtocolWithAppMessage(M8)))==> (event(auth_AppSendsLastMessageToUserKey(K7)) && event(auth_AppSendsLastMessageToUserMessage(M8))).
+
+(* App authenticates the User *)
+query K8:bitstring, M9:bitstring;
+    (event(auth_AppCompletesProtocolWithUserKey(K8)) && event(auth_AppCompletesProtocolWithUserMessage(M9)))==> (event(auth_UserSendsLastMessageToAppKey(K8)) && event(auth_UserSendsLastMessageToAppMessage(M9))).
+
+(* Verifier authenticates the App and implicitly authorize the User, since otherwhise this event will not happens - LOC 334 - 340 *)
 query K9:bitstring, M10:bitstring;
-    (event(auth_VerfierCompletesProtocolWithApp2_1(K9)) && event(auth_VerfierCompletesProtocolWithApp2_2(M10)))==> (event(auth_AppSendsLastMessageToVerifier2_1(K9)) && event(auth_AppSendsLastMessageToVerifier2_2(M10))).
+    (event(auth_VerfierCompletesProtocolWithAppKey(K9)) && event(auth_VerfierCompletesProtocolWithAppMessage(M10)))==> (event(auth_AppSendsLastMessageToVerifierKey(K9)) && event(auth_AppSendsLastMessageToVerifierMessage(M10))).
+
+(* App authenticates the Verifier *)
+query K10:bitstring, M11:bitstring;
+    (event(auth_AppCompletesProtocolWithVerifierKey(K10)) && event(auth_AppCompletesProtocolWithVerifierMessage(M11)))==> (event(auth_VerifierSendsLastMessageToAppKey(K10)) && event(auth_VerifierSendsLastMessageToAppMessage(M11))).
+
 
 (* This might be used for checking the agreement *)
-query  K3:bitstring, K9:bitstring, M4:bitstring, M10:bitstring;
-    (event (auth_VerfierCompletesProtocolWithApp1_1(K3)) && event(auth_VerfierCompletesProtocolWithApp1_2(M4)) && event (auth_VerfierCompletesProtocolWithApp2_1(K9)) && event(auth_VerfierCompletesProtocolWithApp2_2(M10))) ==> (event(auth_AppSendsLastMessageToVerifier1_1(K3)) && event(auth_AppSendsLastMessageToVerifier1_2(M4)) && event(auth_AppSendsLastMessageToVerifier2_1(K9)) && event(auth_AppSendsLastMessageToVerifier2_2(M10))).
+(*query  K3:bitstring, K9:bitstring, M4:bitstring, M10:bitstring;
+    (event (auth_VerfierCompletesProtocolWithApp1_1(K3)) && event(auth_VerfierCompletesProtocolWithApp1_2(M4)) && event (auth_VerfierCompletesProtocolWithApp2_1(K9)) && event(auth_VerfierCompletesProtocolWithApp2_2(M10))) ==> (event(auth_AppSendsLastMessageToVerifier1_1(K3)) && event(auth_AppSendsLastMessageToVerifier1_2(M4)) && event(auth_AppSendsLastMessageToVerifier2_1(K9)) && event(auth_AppSendsLastMessageToVerifier2_2(M10))). *)
 
 (* (* Give me false, this should be okay because all the three events are executed *)
 query M1:bitstring, M2:bitstring, M3:bitstring, M4:bitstring, M5:bitstring, M6:bitstring, M7:bitstring, M8:bitstring, M9:bitstring, M10:bitstring;
